@@ -4,12 +4,11 @@ import { useSpeechRecognition } from "react-speech-kit";
 const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-
   const messagesEndRef = useRef(null);
 
   const { listen, stop, listening } = useSpeechRecognition({
     onResult: (result) => {
-      setInput(result); // Live transcription to input
+      setInput(result); // Live transcription
     },
   });
 
@@ -60,7 +59,41 @@ const ChatPage = () => {
     listening ? stop() : listen({ interim: false });
   };
 
-  // Auto scroll to latest message
+  const handleSend = async () => {
+  if (!input.trim()) return;
+
+  const userMsg = { from: "user", text: input };
+  setMessages((msgs) => [...msgs, userMsg]);
+  setInput("");
+
+  try {
+    const response = await fetch("http://localhost:5000/api/chat", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: input }),
+    });
+
+    const data = await response.json();
+
+    const botReply = data?.data?.detials || "Sorry, I couldn't understand that.";
+
+    const botMsg = {
+      from: "bot",
+      text: botReply,
+    };
+
+    setMessages((msgs) => [...msgs, botMsg]);
+  } catch (error) {
+    console.error("Error:", error);
+    setMessages((msgs) => [
+      ...msgs,
+      { from: "bot", text: "⚠️ Couldn't connect to server. Try again later." },
+    ]);
+  }
+};
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -69,7 +102,7 @@ const ChatPage = () => {
     <div className="flex flex-col h-screen p-4 bg-gray-200">
       <h2 className="text-2xl font-bold mb-4">Chat with Bol Saathi</h2>
 
-      <div className="flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC]  rounded shadow-sm">
+      <div className="flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm">
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -103,7 +136,7 @@ const ChatPage = () => {
             listening ? "bg-red-600" : "bg-green-600"
           }`}
         >
-          {listening ? "Stop" : "🎤 "}
+          {listening ? "Stop" : "🎤"}
         </button>
         <button
           onClick={handleSend}

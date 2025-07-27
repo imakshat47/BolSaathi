@@ -1,16 +1,27 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // import navigate
+import { useLocation, useNavigate } from "react-router-dom";
 
 const UserInfoPage = () => {
-  const navigate = useNavigate(); // initialize navigate
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Get passed data
+  const {
+    name = "",
+    gender = "",
+    age = "",
+    profession = "",
+    place = "",
+    otherDetails = "",
+  } = location.state || {};
 
   const [userInfo, setUserInfo] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    profession: "",
-    place: "",
-    otherDetails: "",
+    name,
+    age,
+    gender,
+    profession,
+    place,
+    otherDetails,
   });
 
   const handleChange = (e) => {
@@ -21,8 +32,6 @@ const UserInfoPage = () => {
     e.preventDefault();
     console.log("User Info Submitted:", userInfo);
     alert("User info saved successfully!");
-
-    // ✅ Redirect to ChatPage
     navigate("/chat");
   };
 
