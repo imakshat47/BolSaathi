@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", phone: "" });
+  const [form, setForm] = useState({ name: "", password: "" });
 
   const { speak } = useSpeechSynthesis();
 
@@ -14,14 +14,12 @@ const LoginPage = () => {
     onResult: (speechText) => {
       const lower = speechText.toLowerCase();
 
-      // Extract phone first to avoid name conflict
-      const phoneMatch = lower.match(
-        /(?:my number is|mobile number is)\s*(\d{10,})/
-      );
-      if (phoneMatch) {
-        const number = phoneMatch[1];
-        if (number) {
-          setForm((f) => ({ ...f, phone: number }));
+      // Extract password (not recommended for real-world apps)
+      const passMatch = lower.match(/(?:my password is)\s*(\S+)/);
+      if (passMatch) {
+        const password = passMatch[1];
+        if (password) {
+          setForm((f) => ({ ...f, password }));
           return;
         }
       }
@@ -41,7 +39,7 @@ const LoginPage = () => {
     speak({
       text:
         t("voiceLoginGuide") ||
-        "Welcome. Please say 'My name is...' and 'My mobile number is...'",
+        "Welcome. Please say 'My name is...' and 'My password is...'",
       lang: "en-IN",
     });
   }, [t]);
@@ -79,28 +77,29 @@ const LoginPage = () => {
         }}
       >
         <h2 className="text-2xl font-bold mb-2">{t("login") || "LOGIN"}</h2>
-       <p className="text-sm text-gray-700 mb-4 text-center">
-  Speak or type your details below. Example: “My name is Rahul” and “My mobile number is 98*******”
-</p>
-
+        <p className="text-sm text-gray-700 mb-4 text-center">
+          Speak or type your details below.
+          <br />
+          Example: “My name is Rahul” and “My password is 123456”
+        </p>
 
         <form onSubmit={handleSubmit} className="w-full space-y-4">
           <input
             type="text"
             name="name"
             required
-            placeholder={t("namePlaceholder") || "Enter your name"}
+            placeholder={t("Enter your name") || "Enter your name"}
             className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
             value={form.name}
             onChange={handleChange}
           />
           <input
-            type="tel"
-            name="phone"
+            type="password"
+            name="password"
             required
-            placeholder={t("mobilePlaceholder") || "Enter mobile number"}
+            placeholder={t("Enter your password") || "Enter your password"}
             className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
-            value={form.phone}
+            value={form.password}
             onChange={handleChange}
           />
           <button
