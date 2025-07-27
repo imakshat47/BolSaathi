@@ -109,16 +109,47 @@ introduction_agent = Agent[IntroductionAgentContext](
 chat_agent = Agent(
     name="chat Agent",
     model=custom_model,
-    tools=[search_scheme_tool],
-    handoff_description="This agent chats candidates and also helps search government schemes.",
+    # tools=[search_scheme_tool],
+    # handoff_description="This agent chats candidates and also helps search government schemes.",
     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-    You are a professional chat assistant. If the user asks about government schemes based on their context (e.g., age, location, employment), use the gov_scheme_search tool.
+    You are a professional assistant capable of real-time web search and reasoning using tools.
+    Your goal: help users find relevant government schemes based on their personal context (e.g., age, location, profession).
+  
+    **Instruction Flow (ReAct-style reasoning):**
+    1. **Think** about whether the user’s query requires a search.
+    2. If yes, **call** `gov_scheme_search` with a concise query combining the question and user context.
+    3. **Observe** the results and then construct your answer.
+    4. **Decide** if further search is needed or proceed to final response.
 
-    Format agent responses as JSON:
+    **IMPORTANT**: Always reply strictly in this JSON format:
+
+    {{
+      "response": "<friendly, concise reply summarizing scheme eligibility or recommendations>",
+      "support_links": ["<url1>", "<url2>", ...]
+    }}
+
+    - If you used the search tool, include relevant URLs in `support_links`.
+    - If no search was needed and your internal knowledge sufficed, `support_links` may be an empty array `[]`.
+
+    Format agent responses only as JSON:
     {{
       "response": "...",
       "support_links": "...",      
     }}
+    """,
+)
+
+
+format_agent = Agent(
+    name="format Agent",
+    model=custom_model,
+    instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
+    You are a professional assistant capable of rephrasing content into well‑formatted, human‑understandable text.
+
+Your responsibilities:
+1. Accept **any type of input**—structured data, technical description, raw text, code comments, etc.
+2. Rephrase and output it in a **single formatted paragraph**, using proper grammar, explanatory tone, and readable style.
+
     """,
 )
 
@@ -146,16 +177,16 @@ async def query(req: QueryRequest):
      # Run Agent
     with trace("Chat", group_id=cid):
         result = await Runner.run(chat_agent, history, context=context, max_turns=3)    
-    print("*"*50)        
-    print("Res: ",result)     
-    print("*"*50)        
-    return
-    output_json = json.loads(result.final_output)    
+        result = await Runner.run(format_agent, result.final_output, max_turns=3)    
+    
+    output_json = {
+        'detials': result.final_output
+    }
        
     # Persist session state
     session_contexts[cid] = context
     session_histories[cid] = result.to_input_list()
-
+    print(output_json)
     return JsonResponse(data=output_json)    
 
 @app.post("/introduction", response_model=JsonResponse)
@@ -164,41 +195,39 @@ async def introduction_endpoint(req: IntroductionRequest):
     user_input = req.user_input
 
     # Initialize context and history
-    context = session_contexts.get(session_id, IntroductionAgentContext())
-    input_items = session_inputs.get(session_id, [])
+    # context = session_contexts.get(session_id)
+    # input_items = session_inputs.get(session_id, [])
 
-    if not input_items:
-        # First message in the session
-        input_items.append({"content": """
-        Extract user details and return valid JSON object only.        
-            Rules:
-            - Use only explicitly stated information
-            - All values must be strings (age as "25" not 25)
-            - Missing info = empty string ""
-            - Additional details go in other_details as key-value pairs
-            - Return JSON only, no markdown, no explanations, no <think> tags
-        Output: Only JSON object body""", "role": "assistant"})
+    # if not input_items:
+    #     # First message in the session
+    #     input_items.append({"content": """
+    #     Extract user details and return valid JSON object only.        
+    #         Rules:
+    #         - Use only explicitly stated information
+    #         - All values must be strings (age as "25" not 25)
+    #         - Missing info = empty string ""
+    #         - Additional details go in other_details as key-value pairs
+    #         - Return JSON only, no markdown, no explanations, no <think> tags
+    #     Output: Only JSON object body""", "role": "assistant"})
 
-    context.past_answers.append(user_input)
     user_input = f"""
     Input: "{user_input}"
     Required output format:
     {json_user_form}
     """
-    input_items.append({"content": user_input, "role": "user"})    
+    # input_items.append({"content": user_input, "role": "user"})    
     
     # Run Agent
     with trace("Introduction", group_id=session_id):
-        result = await Runner.run(introduction_agent, input_items, context=context, max_turns=3)    
+        result = await Runner.run(introduction_agent, user_input, max_turns=3)    
     output_json = json.loads(result.final_output)    
-       
-    # Persist session state
-    session_contexts[session_id] = context
-    session_inputs[session_id] = result.to_input_list()
+    print(output_json)
+    # Persist session state    
+    # session_inputs[session_id] = result.to_input_list()
     return JsonResponse(data=output_json)    
 
 async def main():
-    await introduction_endpoint(IntroductionRequest(session_id="test",user_input=""))
+    # await introduction_endpoint(IntroductionRequest(session_id="test",user_input="I'm Ramesh, male, a labor working at dhbn company, I'm 40 yrs old and lives in dhulia and very poor."))
     await query(QueryRequest(session_id="test",user_input="What government schemes are available for unemployed youth in Delhi looking to start a small business?",))
 
 if __name__ == "__main__":
