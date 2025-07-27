@@ -12,88 +12,53 @@ const ChatPage = () => {
     },
   });
 
- const handleSend = async () => {
-  if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim()) return;
 
-  // const userMsg = { from: "user", text: input };
+    // const userMsg = { from: "user", text: input };
 
-  // // Add user message
-  // setMessages((msgs) => [...msgs, userMsg]);
-  // setInput("");
+    // // Add user message
+    // setMessages((msgs) => [...msgs, userMsg]);
+    // setInput("");
 
-  // // Simulated bot response
-  // setTimeout(() => {
-  //   setMessages((msgs) => [...msgs, { from: "bot", text: "Thanks for your message!" }]);
-  // }, 1000);
-  const userMsg = { from: "user", text: input };
-  setMessages((msgs) => [...msgs, userMsg]);
-  setInput("");
+    // // Simulated bot response
+    // setTimeout(() => {
+    //   setMessages((msgs) => [...msgs, { from: "bot", text: "Thanks for your message!" }]);
+    // }, 1000);
+    const userMsg = { from: "user", text: input };
+    setMessages((msgs) => [...msgs, userMsg]);
+    setInput("");
 
-  try {
-    const headers = {
-      "Content-Type": "application/json"
-    };
+    try {
+      const headers = {
+        "Content-Type": "application/json"
+      };
 
-    const form_data = {
-      session_id: "john1",   // You can make this dynamic as needed
-      user_input: input
-    };
+      const form_data = {
+        session_id: "john1",   // You can make this dynamic as needed
+        user_input: input
+      };
 
-    const res = await fetch("http://localhost:8000/query", {
-      method: "POST",
-      headers,
-      body: JSON.stringify(form_data)
-    });
+      const res = await fetch("http://localhost:8000/query", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(form_data)
+      });
 
-    const data = await res.json();    
-    const botReply = data.data.details || "Sorry, no details found."; // Ensure this matches backend key
-    // console.log(botReply);
+      const data = await res.json();
+      const botReply = data.data.details || "Sorry, no details found."; // Ensure this matches backend key
+      // console.log(botReply);
 
-    setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
-  } catch (err) {
-    console.error("Fetch error:", err);
-    setMessages((msgs) => [...msgs, { from: "bot", text: "Error contacting the server." }]);
-  }
-};
+      setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      setMessages((msgs) => [...msgs, { from: "bot", text: "Error contacting the server." }]);
+    }
+  };
+
   const toggleListening = () => {
     listening ? stop() : listen({ interim: false });
   };
-
-  const handleSend = async () => {
-  if (!input.trim()) return;
-
-  const userMsg = { from: "user", text: input };
-  setMessages((msgs) => [...msgs, userMsg]);
-  setInput("");
-
-  try {
-    const response = await fetch("http://localhost:5000/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ message: input }),
-    });
-
-    const data = await response.json();
-
-    const botReply = data?.data?.detials || "Sorry, I couldn't understand that.";
-
-    const botMsg = {
-      from: "bot",
-      text: botReply,
-    };
-
-    setMessages((msgs) => [...msgs, botMsg]);
-  } catch (error) {
-    console.error("Error:", error);
-    setMessages((msgs) => [
-      ...msgs,
-      { from: "bot", text: "⚠️ Couldn't connect to server. Try again later." },
-    ]);
-  }
-};
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -109,11 +74,10 @@ const ChatPage = () => {
             className={`mb-2 ${msg.from === "user" ? "text-right" : "text-left"}`}
           >
             <span
-              className={`inline-block px-4 py-2 rounded-lg ${
-                msg.from === "user"
+              className={`inline-block px-4 py-2 rounded-lg ${msg.from === "user"
                   ? "bg-white text-blue-800"
                   : "bg-white text-gray-800 border"
-              }`}
+                }`}
             >
               {msg.text}
             </span>
@@ -132,9 +96,8 @@ const ChatPage = () => {
         />
         <button
           onClick={toggleListening}
-          className={`px-4 py-2 rounded text-white ${
-            listening ? "bg-red-600" : "bg-green-600"
-          }`}
+          className={`px-4 py-2 rounded text-white ${listening ? "bg-red-600" : "bg-green-600"
+            }`}
         >
           {listening ? "Stop" : "🎤"}
         </button>
