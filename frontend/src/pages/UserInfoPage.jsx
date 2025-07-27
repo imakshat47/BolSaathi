@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // import navigate
 
 const UserInfoPage = () => {
+  const navigate = useNavigate(); // initialize navigate
+
   const [userInfo, setUserInfo] = useState({
     name: "",
     age: "",
@@ -18,6 +21,9 @@ const UserInfoPage = () => {
     e.preventDefault();
     console.log("User Info Submitted:", userInfo);
     alert("User info saved successfully!");
+
+    // ✅ Redirect to ChatPage
+    navigate("/chat");
   };
 
   return (

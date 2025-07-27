@@ -110,12 +110,13 @@ export default function HomePage() {
           Your multilingual AI assistant for welfare schemes.
         </p>
 
-        <Link
-          to="/greet"
-          className="mt-6 px-6 py-3 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition"
-        >
-          Get Started
-        </Link>
+       <Link
+  to="/greet"
+  onClick={() => speechSynthesis.cancel()}
+  className="mt-6 px-6 py-3 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition"
+>
+  Get Started
+</Link>
       </div>
     </div>
   );
