@@ -5,7 +5,9 @@ import os
 import uuid
 from dotenv import load_dotenv
 import json
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+from tavily import TavilyClient
+from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,15 +20,20 @@ from agents import (
     set_tracing_disabled
 )
 from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
+# logger
+import logging
+logger = logging.getLogger(__name__)
 
 # Load environment variables
-load_dotenv()
+print(load_dotenv())
 set_tracing_disabled(disabled=True)
-
+# Key
 groq_base_url = os.environ.get("GROQ_OPENAI_BASE_URL")
 groq_api_key = os.environ.get("GROQ_API_KEY")
+tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY "))
 
 model = "deepseek-r1-distill-llama-70b"
+model = "meta-llama/llama-4-maverick-17b-128e-instruct"
 
 custom_model = OpenAIChatCompletionsModel(
     model=model,
@@ -34,65 +41,85 @@ custom_model = OpenAIChatCompletionsModel(
 )
 
 # Context
-class InterviewAgentContext(BaseModel):
-    candidate_name: str | None = None
-    current_stage: str = "introduction"
-    past_answers: list[str] = []
+class IntroductionAgentContext(BaseModel):    
+    user_input: str | None
+    context: list[str] = []
 
-class InterviewRequest(BaseModel):
+class QueryRequest(BaseModel):
     session_id: str
     user_input: str
 
-class InterviewResponse(BaseModel):
-    refined_answer: str
-    next_question: str
+class IntroductionRequest(BaseModel):
+    session_id: str
+    user_input: str
 
-session_contexts: dict[str, InterviewAgentContext] = {}
+class JsonResponse(BaseModel):
+    data: Optional[Dict[str, Any]] = None
+    status: int = 200
+
+session_contexts= {}
 session_inputs: dict[str, list[TResponseInputItem]] = {}
-
-class QueryRequest(BaseModel):
-    query: str
-
-class QueryResponse(BaseModel):
-    res: str
+session_histories = {}
 
 ### TOOLS
+# Tool to search government scheme info
+@function_tool(
+    name_override="gov_scheme_search",
+    description_override="Search for relevant government schemes using question and personal context."
+)
+async def search_scheme_tool(question: str, context: str) -> str:
+    query = f"{question}. User context: {context}"
+    resp = tavily.get_search_context(query="What happened during the Burning Man floods?")
+    return resp
+    resp = tavily.search(query)
+    # Extract top 3 results
+    items = resp.get("results", [])[:3]
+    summary = "\n".join(f"- {i.get('title')}: {i.get('content')[:200]}..." for i in items)
+    urls = "\n".join(i.get("url", "") for i in items)
+    return f"Search Results:\n{summary}\nLinks:\n{urls}"
 
-@function_tool(name_override="interview_feedback_tool",
-               description_override="Analyze user response and suggest next interview question.")
-async def interview_feedback_tool(answer: str, stage: str) -> str:
-    """
-    Suggest the next question based on the current stage and user response.
-    """
-    if stage == "introduction":
-        return "Why are you interested in this position?"
-    elif stage == "experience":
-        return "Can you describe a project where you solved a difficult problem?"
-    elif stage == "skills":
-        return "What is your experience with Python and system design?"
-    else:
-        return "Do you have any questions for us?"
-
+json_user_form = {
+    'name': '',
+    'age': '',
+    'gender': '',
+    'profession': '',
+    'place': '',
+    'other detials': {},
+}
 
 ### AGENT
-interview_agent = Agent[InterviewAgentContext](
-    name="Interview Agent",
+introduction_agent = Agent[IntroductionAgentContext](    
+    name="Introduction Agent",
     model=custom_model,
-    handoff_description="An intelligent agent that conducts interviews by asking relevant questions.",
+    handoff_description="An intelligent agent that extracts details from user introduction.",
     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-    You are a professional interviewer. Start the session with 'Tell me about yourself'.
-    For each response, use the interview_feedback_tool to generate the next question.
-    Maintain the context of the conversation including previous responses.
-    Format your reply as a JSON object with two keys:
-    - refined_answer: A clearer and professional version of the user's answer.
-    - next_question: The next follow-up or related a question to ask the candidate.
-    Ensure the JSON is parsable and concise. json response should look like:
+    Extract user details and return valid JSON object only.        
+    Rules:
+    - Use only explicitly stated information
+    - All values must be strings (age as "25" not 25)
+    - Missing info = empty string ""
+    - Additional details go in other_details as key-value pairs
+    - Return JSON only, no markdown, no explanations, no <think> tags
+
+    Output: Only JSON object body
+    """,
+    tools=[],
+)
+
+chat_agent = Agent(
+    name="chat Agent",
+    model=custom_model,
+    tools=[search_scheme_tool],
+    handoff_description="This agent chats candidates and also helps search government schemes.",
+    instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
+    You are a professional chat assistant. If the user asks about government schemes based on their context (e.g., age, location, employment), use the gov_scheme_search tool.
+
+    Format agent responses as JSON:
     {{
-        "refined_answer": "A clearer and professional version of the user's answer.",
-        "next_question": "The next follow-up or related question."
+      "response": "...",
+      "support_links": "...",      
     }}
     """,
-    tools=[interview_feedback_tool],
 )
 
 ### FASTAPI APP
@@ -106,115 +133,74 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/")
 async def root():
     return {"message": "Hello there!!"}
 
+@app.post("/query", response_model=JsonResponse)
+async def query(req: QueryRequest):
+    cid = req.session_id    
+    context = session_contexts.get(cid, req.user_input)
+    history = session_histories.get(cid, []) + [{"role":"user","content":req.user_input}]
 
-@app.post("/query", response_model=QueryResponse)
-async def query_endpoint(req: QueryRequest):    
-    query = req.query    
-    session_id="test"
-    # Run the agent
-    context = session_contexts.get(session_id, InterviewAgentContext())
-    input_items = session_inputs.get(session_id, [])
+     # Run Agent
+    with trace("Chat", group_id=cid):
+        result = await Runner.run(chat_agent, history, context=context, max_turns=3)    
+    print("*"*50)        
+    print("Res: ",result)     
+    print("*"*50)        
+    return
+    output_json = json.loads(result.final_output)    
+       
+    # Persist session state
+    session_contexts[cid] = context
+    session_histories[cid] = result.to_input_list()
 
-    context.past_answers.append(user_input)
-    input_items.append({"content": user_input, "role": "user"})
-    with trace("Interview", group_id=session_id):
-        result = await Runner.run(interview_agent, input_items, context=context, max_turns=20)
+    return JsonResponse(data=output_json)    
 
-    # Extract final response
-    for new_item in result.new_items:
-        if isinstance(new_item, MessageOutputItem):
-            try:
-                print(f"New item: {new_item}")
-                res = ItemHelpers.text_message_output(new_item)
-                print(f"Response: {res}")
-                parsed = json.loads(res)
-                output_text = {
-                    "refined_answer": parsed.get("refined_answer", ""),
-                    "next_question": parsed.get("next_question", "")
-                }
-            except Exception:
-                output_text = {
-                    "refined_answer": "(Failed to parse refined_answer)",
-                    "next_question": "(Failed to parse next_question)"
-                }
-            break
-        else:
-            output_text = {
-                "refined_answer": "(No valid response)",
-                "next_question": "(No question generated)"
-            }
-    res = {
-        'res': query
-    }
-    return QueryResponse(**res)
+@app.post("/introduction", response_model=JsonResponse)
+async def introduction_endpoint(req: IntroductionRequest):
     session_id = req.session_id
     user_input = req.user_input
-    res = {
-        "refined_answer": "I have contributed to several projects, including a web-based inventory management system and a real-time chat application, utilizing technologies such as Python, JavaScript, and React.",        
-        "next_question": "Can you elaborate on the web-based inventory management system? What were some of the key technologies and challenges you encountered?"
-    }
 
-@app.post("/interview", response_model=InterviewResponse)
-async def interview_endpoint(req: InterviewRequest):
-    session_id = req.session_id
-    user_input = req.user_input
-    res = {
-    "refined_answer": "I have contributed to several projects, including a web-based inventory management system and a real-time chat application, utilizing technologies such as Python, JavaScript, and React.",        
-    "next_question": "Can you elaborate on the web-based inventory management system? What were some of the key technologies and challenges you encountered?"
-    }
-    return InterviewResponse(**res)
     # Initialize context and history
-    context = session_contexts.get(session_id, InterviewAgentContext())
+    context = session_contexts.get(session_id, IntroductionAgentContext())
     input_items = session_inputs.get(session_id, [])
 
     if not input_items:
         # First message in the session
-        input_items.append({"content": "Tell me about yourself", "role": "assistant"})
+        input_items.append({"content": """
+        Extract user details and return valid JSON object only.        
+            Rules:
+            - Use only explicitly stated information
+            - All values must be strings (age as "25" not 25)
+            - Missing info = empty string ""
+            - Additional details go in other_details as key-value pairs
+            - Return JSON only, no markdown, no explanations, no <think> tags
+        Output: Only JSON object body""", "role": "assistant"})
 
     context.past_answers.append(user_input)
-    input_items.append({"content": user_input, "role": "user"})
-
-    # Run the agent
-    with trace("Interview", group_id=session_id):
-        result = await Runner.run(interview_agent, input_items, context=context, max_turns=20)
-
-    # Extract final response
-    for new_item in result.new_items:
-        if isinstance(new_item, MessageOutputItem):
-            try:
-                print(f"New item: {new_item}")
-                res = ItemHelpers.text_message_output(new_item)
-                print(f"Response: {res}")
-                parsed = json.loads(res)
-                output_text = {
-                    "refined_answer": parsed.get("refined_answer", ""),
-                    "next_question": parsed.get("next_question", "")
-                }
-            except Exception:
-                output_text = {
-                    "refined_answer": "(Failed to parse refined_answer)",
-                    "next_question": "(Failed to parse next_question)"
-                }
-            break
-        else:
-            output_text = {
-                "refined_answer": "(No valid response)",
-                "next_question": "(No question generated)"
-            }
-
+    user_input = f"""
+    Input: "{user_input}"
+    Required output format:
+    {json_user_form}
+    """
+    input_items.append({"content": user_input, "role": "user"})    
+    
+    # Run Agent
+    with trace("Introduction", group_id=session_id):
+        result = await Runner.run(introduction_agent, input_items, context=context, max_turns=3)    
+    output_json = json.loads(result.final_output)    
+       
     # Persist session state
     session_contexts[session_id] = context
     session_inputs[session_id] = result.to_input_list()
-    
-    return InterviewResponse(**output_text)
-    return InterviewResponse(agent_output=output_text)
+    return JsonResponse(data=output_json)    
+
+async def main():
+    await introduction_endpoint(IntroductionRequest(session_id="test",user_input=""))
+    await query(QueryRequest(session_id="test",user_input="What government schemes are available for unemployed youth in Delhi looking to start a small business?",))
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="0.0.0.0", port=8000 , reload=True, log_level="info")
-
-# python app.py
+    asyncio.run(main())
+#     uvicorn.run("app:app", host="0.0.0.0", port=8000 , reload=True, log_level="info")

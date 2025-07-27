@@ -12,12 +12,13 @@ headers = {
 
 # POST with form data
 queries = [
-    "I am a software engineer working at ST. ",
-    "I am good at developing web applications and have experience with Python, JavaScript, and React. ",
-    "I have worked on several projects, including a web-based inventory management system and a real-time chat application. ",
+    "I am a small-scale farmer living in Uttar Pradesh, age 35. Am I eligible for any government subsidy schemes for purchasing agricultural equipment?"   ,
+    "What government schemes are available for unemployed youth in Delhi looking to start a small business?",
+    "I have been diagnosed with a chronic illness and earn below Rs 1 lakh annually. Are there medical support schemes I can access?",
+     "As a 22-year-old student from Mumbai pursuing a B.Tech, what government scholarships or loan schemes can assist me?"
 ]
 
 for query in queries:
     form_data = {"session_id": "john1", "user_input": str(query)}
-    response = requests.post("http://localhost:8000/interview", json=form_data, headers=headers)
+    response = requests.post("http://localhost:8000/query", json=form_data, headers=headers)
     print(response.json()) 
