@@ -42,5 +42,6 @@ cd BolSaathi/frontend
 
 ### 2.Install Dependencies
 npm install
+<br/>
 --If you get errors (e.g., with react-speech-kit)
 npm install react@18 react-dom@18
