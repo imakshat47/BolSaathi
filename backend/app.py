@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 from openai import AsyncOpenAI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
 from agents import (
     OpenAIChatCompletionsModel, Agent,
     HandoffOutputItem, ItemHelpers, MessageOutputItem,
@@ -180,14 +181,14 @@ async def query(req: QueryRequest):
         result = await Runner.run(format_agent, result.final_output, max_turns=3)    
     
     output_json = {
-        'detials': result.final_output
+        'details': result.final_output
     }
-       
+
     # Persist session state
     session_contexts[cid] = context
     session_histories[cid] = result.to_input_list()
-    print(output_json)
-    return JsonResponse(data=output_json)    
+    print(jsonable_encoder(output_json))
+    return JsonResponse(data=jsonable_encoder(output_json))    
 
 @app.post("/introduction", response_model=JsonResponse)
 async def introduction_endpoint(req: IntroductionRequest):

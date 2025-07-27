@@ -13,19 +13,48 @@ const ChatPage = () => {
     },
   });
 
- const handleSend = () => {
+ const handleSend = async () => {
   if (!input.trim()) return;
 
-  const userMsg = { from: "user", text: input };
+  // const userMsg = { from: "user", text: input };
 
-  // Add user message
+  // // Add user message
+  // setMessages((msgs) => [...msgs, userMsg]);
+  // setInput("");
+
+  // // Simulated bot response
+  // setTimeout(() => {
+  //   setMessages((msgs) => [...msgs, { from: "bot", text: "Thanks for your message!" }]);
+  // }, 1000);
+  const userMsg = { from: "user", text: input };
   setMessages((msgs) => [...msgs, userMsg]);
   setInput("");
 
-  // Simulated bot response
-  setTimeout(() => {
-    setMessages((msgs) => [...msgs, { from: "bot", text: "Thanks for your message!" }]);
-  }, 1000);
+  try {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+
+    const form_data = {
+      session_id: "john1",   // You can make this dynamic as needed
+      user_input: input
+    };
+
+    const res = await fetch("http://localhost:8000/query", {
+      method: "POST",
+      headers,
+      body: JSON.stringify(form_data)
+    });
+
+    const data = await res.json();    
+    const botReply = data.data.details || "Sorry, no details found."; // Ensure this matches backend key
+    // console.log(botReply);
+
+    setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
+  } catch (err) {
+    console.error("Fetch error:", err);
+    setMessages((msgs) => [...msgs, { from: "bot", text: "Error contacting the server." }]);
+  }
 };
   const toggleListening = () => {
     listening ? stop() : listen({ interim: false });
