@@ -46,8 +46,9 @@ const ChatPage = () => {
       });
 
       const data = await res.json();
+      console.log(data);
       const botReply = data.data.details || "Sorry, no details found."; // Ensure this matches backend key
-      // console.log(botReply);
+      console.log(botReply);
 
       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
     } catch (err) {
