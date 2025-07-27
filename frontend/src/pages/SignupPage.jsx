@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 
@@ -7,12 +7,11 @@ const SignupPage = () => {
   const [form, setForm] = useState({ name: "", password: "" });
 
   const { speak } = useSpeechSynthesis();
+  const spokenRef = useRef(false);
 
   const { listen, stop, listening } = useSpeechRecognition({
     onResult: (speechText) => {
       const lower = speechText.toLowerCase();
-
-      // Extract Name
       const nameMatch = lower.match(/my name is\s*(.+)/);
       if (nameMatch) {
         const name = nameMatch[1].replace(/[0-9]/g, "").trim();
@@ -24,43 +23,67 @@ const SignupPage = () => {
   });
 
   useEffect(() => {
-    speak({
-      text: "Welcome. Please say 'My name is...' or type your name and password manually.",
-      lang: "en-IN",
-    });
+    if (!spokenRef.current) {
+      speak({
+        text: "Welcome. Please say 'My name is...' or type your name and password manually.",
+        lang: "en-IN",
+      });
+      spokenRef.current = true;
+    }
   }, []);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!form.name || !form.password) {
-      speak({
-        text: "Both name and password are required.",
-        lang: "en-IN",
-      });
+      speak({ text: "Both name and password are required.", lang: "en-IN" });
       return;
     }
 
-    speak({
-      text: `Thank you ${form.name}. You are signed up successfully.`,
-      lang: "en-IN",
-    });
+    try {
+      const response = await fetch("http://localhost:8000/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: form.name,
+          email: "",
+          password: form.password,
+        }),
+      });
 
-    setTimeout(() => {
-      navigate("/chat");
-    }, 4000);
+      const data = await response.json();
+
+      if (response.ok) {
+        speak({
+          text: `Thank you ${form.name}. You are signed up successfully.`,
+          lang: "en-IN",
+        });
+        setTimeout(() => {
+          navigate("/chat");
+        }, 4000);
+      } else {
+        speak({
+          text: data?.message || "Registration failed. Please try again.",
+          lang: "en-IN",
+        });
+        console.error("❌ Backend Error:", data);
+      }
+    } catch (error) {
+      speak({
+        text: "An error occurred. Check your internet connection.",
+        lang: "en-IN",
+      });
+      console.error("❌ Network Error:", error);
+    }
   };
 
   const toggleListening = () => {
-    if (listening) {
-      stop();
-    } else {
-      listen({ interim: false });
-    }
+    if (listening) stop();
+    else listen({ interim: false });
   };
 
   return (
