@@ -1,6 +1,9 @@
+
+
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
+import gsap from "gsap";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -8,6 +11,8 @@ const SignupPage = () => {
 
   const { speak } = useSpeechSynthesis();
   const spokenRef = useRef(false);
+  const cardRef = useRef(null);
+  const contentRefs = useRef([]);
 
   const { listen, stop, listening } = useSpeechRecognition({
     onResult: (speechText) => {
@@ -32,28 +37,53 @@ const SignupPage = () => {
     }
   }, []);
 
+  useEffect(() => {
+    gsap.fromTo(
+      cardRef.current,
+      { x: -300, opacity: 0 },
+      { x: 0, opacity: 1, duration: 1, ease: "power2.out" }
+    );
+
+    gsap.fromTo(
+      contentRefs.current,
+      { y: 40, opacity: 0 },
+      {
+        y: 0,
+        opacity: 1,
+        duration: 0.6,
+        stagger: 0.1,
+        delay: 0.3,
+        ease: "power2.out",
+      }
+    );
+  }, []);
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!form.name || !form.password) {
       speak({ text: "Both name and password are required.", lang: "en-IN" });
       return;
     }
 
-    try {
-      const response = await fetch("http://localhost:8000/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: form.name,
-          email: "",
-          password: form.password,
-        }),
-      });
+   try {
+  const response = await fetch("http://localhost:8000/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+   body: JSON.stringify({ name: form.name, password: form.password }),
+
+  });
+
+  if (!response.ok) {
+    // If the server returns a 404 or other error
+    const errorText = await response.text(); // Read the response as plain text (not JSON)
+    throw new Error(`Server Error (${response.status}): ${errorText}`);
+  }
 
       const data = await response.json();
 
@@ -62,9 +92,11 @@ const SignupPage = () => {
           text: `Thank you ${form.name}. You are signed up successfully.`,
           lang: "en-IN",
         });
+
         setTimeout(() => {
-          navigate("/chat");
-        }, 4000);
+          window.speechSynthesis.cancel();
+          navigate("/greet");
+        }, 1000);
       } else {
         speak({
           text: data?.message || "Registration failed. Please try again.",
@@ -74,7 +106,7 @@ const SignupPage = () => {
       }
     } catch (error) {
       speak({
-        text: "An error occurred. Check your internet connection.",
+        text: "Something went wrong. Please try again.",
         lang: "en-IN",
       });
       console.error("❌ Network Error:", error);
@@ -87,8 +119,9 @@ const SignupPage = () => {
   };
 
   return (
-    <div className="w-full h-screen flex flex-col items-center justify-center bg-[#ECECEC]">
+    <div className="w-full h-screen flex items-center justify-center bg-[#ECECEC]">
       <div
+        ref={cardRef}
         className="flex flex-col items-center justify-center w-full max-w-md border border-gray-400 rounded-xl p-8 shadow-md bg-cover bg-center hover:border-zinc-800 cursor-pointer"
         style={{
           backgroundImage:
@@ -97,8 +130,16 @@ const SignupPage = () => {
           backgroundBlendMode: "lighten",
         }}
       >
-        <h2 className="text-2xl font-bold mb-2">SIGN UP</h2>
-        <p className="text-sm text-gray-700 mb-4 text-center">
+        <h2
+          className="text-2xl font-bold mb-2"
+          ref={(el) => (contentRefs.current[0] = el)}
+        >
+          SIGN UP
+        </h2>
+        <p
+          className="text-sm text-gray-700 mb-4 text-center"
+          ref={(el) => (contentRefs.current[1] = el)}
+        >
           Speak or type your details below.
           <br />
           Example: “My name is Rahul”
@@ -113,6 +154,7 @@ const SignupPage = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
             value={form.name}
             onChange={handleChange}
+            ref={(el) => (contentRefs.current[2] = el)}
           />
           <input
             type="password"
@@ -122,10 +164,13 @@ const SignupPage = () => {
             className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
             value={form.password}
             onChange={handleChange}
+            ref={(el) => (contentRefs.current[3] = el)}
           />
+
           <button
             type="submit"
             className="w-full bg-[#31699e] text-white py-2 rounded hover:bg-blue-800 transition"
+            ref={(el) => (contentRefs.current[4] = el)}
           >
             Sign Up
           </button>
@@ -134,15 +179,17 @@ const SignupPage = () => {
         <button
           onClick={toggleListening}
           className={`mt-6 px-6 py-2 rounded text-white transition ${
-            listening
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-green-600 hover:bg-green-700"
+            listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
           }`}
+          ref={(el) => (contentRefs.current[5] = el)}
         >
           {listening ? "Stop Listening" : "🎙️ Speak Now"}
         </button>
 
-        <p className="mt-4 text-sm text-gray-700 text-center">
+        <p
+          className="mt-4 text-sm text-gray-700 text-center"
+          ref={(el) => (contentRefs.current[6] = el)}
+        >
           Already have an account?{" "}
           <a href="/login" className="text-blue-600 hover:underline">
             Login
@@ -154,3 +201,5 @@ const SignupPage = () => {
 };
 
 export default SignupPage;
+
+
