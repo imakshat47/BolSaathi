@@ -1,6 +1,4 @@
 # BolSaathi
-# BolSaathi – Frontend
-
 BolSaathi is a multilingual React web application built to provide conversational assistance. It includes login/signup, chatbot interaction, and voice input with multi-language support.
 <hr>
 
@@ -102,11 +100,13 @@ npm install react@18 react-dom@18
 🔗 OUTPUT
 <br>
 <br>
-
-<img width="1896" height="897" alt="Image" src="https://github.com/user-attachments/assets/7ececdb1-7486-4419-a76a-4cc1b30f5883" />
+<img width="1898" height="902" alt="Image" src="https://github.com/user-attachments/assets/36039a2b-b2d1-40df-8c4e-8a805c297233" /> 
+<img width="1898" height="898" alt="Image" src="https://github.com/user-attachments/assets/4710ff51-ccf4-42fd-84aa-30e5c3618d77" /> 
+<img width="1901" height="970" alt="Image" src="https://github.com/user-attachments/assets/7c778fa4-0dd3-4014-a03b-048fc781e6c1" /> 
+<img width="1906" height="890" alt="Image" src="https://github.com/user-attachments/assets/dcd0bd3d-fa6a-4bb3-ae06-ce8c127e9ed1" />
 <img width="1892" height="895" alt="Image" src="https://github.com/user-attachments/assets/dd34603e-c066-497a-94e0-2495ff53b6aa" />
 <img width="1885" height="904" alt="Image" src="https://github.com/user-attachments/assets/2573beaa-c9af-4a34-9e3d-91b4ea5cb659" />
-<img width="1906" height="890" alt="Image" src="https://github.com/user-attachments/assets/dcd0bd3d-fa6a-4bb3-ae06-ce8c127e9ed1" />
-<img width="1901" height="970" alt="Image" src="https://github.com/user-attachments/assets/7c778fa4-0dd3-4014-a03b-048fc781e6c1" />
-<img width="1898" height="902" alt="Image" src="https://github.com/user-attachments/assets/36039a2b-b2d1-40df-8c4e-8a805c297233" />
-<img width="1898" height="898" alt="Image" src="https://github.com/user-attachments/assets/4710ff51-ccf4-42fd-84aa-30e5c3618d77" /> 
+<img width="1896" height="897" alt="Image" src="https://github.com/user-attachments/assets/7ececdb1-7486-4419-a76a-4cc1b30f5883" />
+
+
+
