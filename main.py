@@ -12,7 +12,7 @@ origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[*],  # domains that can access this backend
+    allow_origins=origins,  # domains that can access this backend
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
