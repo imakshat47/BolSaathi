@@ -94,7 +94,6 @@ npm install
 <br/>
 --If you get errors (e.g., with react-speech-kit)
 npm install react@18 react-dom@18
-<hr>
 
 <hr>
 🔗 OUTPUT
