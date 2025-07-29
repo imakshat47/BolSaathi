@@ -24,6 +24,9 @@ from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 # logger
 import logging
 logger = logging.getLogger(__name__)
+# Disbale warnings
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Load environment variables
 print(load_dotenv())
@@ -158,7 +161,7 @@ Your responsibilities:
 app = FastAPI()
 # CORS configuration
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,         
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
@@ -232,5 +235,6 @@ async def main():
     await query(QueryRequest(session_id="test",user_input="What government schemes are available for unemployed youth in Delhi looking to start a small business?",))
 
 if __name__ == "__main__":
-    asyncio.run(main())
-#     uvicorn.run("app:app", host="0.0.0.0", port=8000 , reload=True, log_level="info")
+    # asyncio.run(main())
+    port = int(os.environ.get('PORT', 5000))  # Use PORT environment variable or default to 4000
+    uvicorn.run("app:app", host="0.0.0.0", port=port , reload=True, log_level="info")

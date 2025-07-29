@@ -1,7 +1,7 @@
 import requests
 
 # Make a GET request
-response = requests.get("http://localhost:8000/")
+response = requests.get("https://bolsaathi.onrender.com/")
 print(response.status_code)  # 200
 print(response.json()) 
 
@@ -20,5 +20,5 @@ queries = [
 
 for query in queries:
     form_data = {"session_id": "john1", "user_input": str(query)}
-    response = requests.post("http://localhost:8000/query", json=form_data, headers=headers)
+    response = requests.post("https://bolsaathi.onrender.com/query", timeout=10, verify=False,  json=form_data, headers=headers)
     print(response.json()) 
