@@ -4,7 +4,7 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-CORS(app)  # Allow CORS so frontend (React) can access backend
+CORS(app)  # Enable CORS for frontend communication
 
 # Configurations
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///user.db'
@@ -42,7 +42,7 @@ def register():
 
     return jsonify({"message": "Registration successful"}), 200
 
-# Optional: Login route for later
+# Login Route
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -55,5 +55,6 @@ def login():
         return jsonify({"message": "Login successful"}), 200
     return jsonify({"message": "Invalid credentials"}), 401
 
+# Run on port 8000
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=8000)
