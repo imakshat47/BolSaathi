@@ -24,6 +24,9 @@ from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
 # logger
 import logging
 logger = logging.getLogger(__name__)
+# Disbale warnings
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Load environment variables
 print(load_dotenv())
