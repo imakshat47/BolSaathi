@@ -87,7 +87,7 @@ const handleSubmit = async (e) => {
     }
 
     // 3. Send encrypted password to backend
-    const response = await fetch("http://localhost:8000/register", {
+    const response = await fetch("http://localhost:8000/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: form.name, password: encryptedPassword }),
