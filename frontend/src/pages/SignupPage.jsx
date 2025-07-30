@@ -62,56 +62,60 @@ const SignupPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.password) {
-      speak({ text: "Both name and password are required.", lang: "en-IN" });
+  import JSEncrypt from "jsencrypt";
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!form.name || !form.password) {
+    speak({ text: "Both name and password are required.", lang: "en-IN" });
+    return;
+  }
+
+  try {
+    // 1. Fetch public key
+    const pubRes = await fetch("http://localhost:8000/keys/public.pem");
+    const publicKey = await pubRes.text();
+
+    // 2. Encrypt password
+    const encryptor = new JSEncrypt();
+    encryptor.setPublicKey(publicKey);
+    const encryptedPassword = encryptor.encrypt(form.password);
+
+    if (!encryptedPassword) {
+      speak({ text: "Encryption failed.", lang: "en-IN" });
       return;
     }
 
-   try {
-  const response = await fetch("http://localhost:8000/register", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-   body: JSON.stringify({ name: form.name, password: form.password }),
+    // 3. Send encrypted password to backend
+    const response = await fetch("http://localhost:8000/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: form.name, password: encryptedPassword }),
+    });
 
-  });
+    const data = await response.json();
 
-  if (!response.ok) {
-    // If the server returns a 404 or other error
-    const errorText = await response.text(); // Read the response as plain text (not JSON)
-    throw new Error(`Server Error (${response.status}): ${errorText}`);
-  }
-
-      const data = await response.json();
-
-      if (response.ok) {
-        speak({
-          text: `Thank you ${form.name}. You are signed up successfully.`,
-          lang: "en-IN",
-        });
-
-        setTimeout(() => {
-          window.speechSynthesis.cancel();
-          navigate("/greet");
-        }, 1000);
-      } else {
-        speak({
-          text: data?.message || "Registration failed. Please try again.",
-          lang: "en-IN",
-        });
-        console.error("❌ Backend Error:", data);
-      }
-    } catch (error) {
+    if (response.ok) {
       speak({
-        text: "Something went wrong. Please try again.",
+        text: `Thank you ${form.name}. You are signed up successfully.`,
         lang: "en-IN",
       });
-      console.error("❌ Network Error:", error);
+      setTimeout(() => {
+        window.speechSynthesis.cancel();
+        navigate("/greet");
+      }, 1000);
+    } else {
+      speak({
+        text: data?.message || "Registration failed. Please try again.",
+        lang: "en-IN",
+      });
+      console.error("❌ Backend Error:", data);
     }
-  };
+  } catch (error) {
+    speak({ text: "Something went wrong. Please try again.", lang: "en-IN" });
+    console.error("❌ Network Error:", error);
+  }
+};
 
   const toggleListening = () => {
     if (listening) stop();
