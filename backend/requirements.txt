@@ -67,7 +67,7 @@ tavily-python==0.7.10
 tensorboard==2.19.0
 tensorboard-data-server==0.7.2
 tensorflow==2.19.0
-tensorflow_intel==2.18.0
+# tensorflow_intel==2.18.0
 termcolor==3.1.0
 tiktoken==0.9.0
 tqdm==4.67.1
