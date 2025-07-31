@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 import gsap from "gsap";
+import JSEncrypt from "jsencrypt";
 
 const SignupPage = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const SignupPage = () => {
       });
       spokenRef.current = true;
     }
-  }, []);
+  }, [speak]);
 
   useEffect(() => {
     gsap.fromTo(
@@ -62,60 +63,55 @@ const SignupPage = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  import JSEncrypt from "jsencrypt";
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!form.name || !form.password) {
-    speak({ text: "Both name and password are required.", lang: "en-IN" });
-    return;
-  }
-
-  try {
-    // 1. Fetch public key
-    const pubRes = await fetch("http://localhost:8000/keys/public.pem");
-    const publicKey = await pubRes.text();
-
-    // 2. Encrypt password
-    const encryptor = new JSEncrypt();
-    encryptor.setPublicKey(publicKey);
-    const encryptedPassword = encryptor.encrypt(form.password);
-
-    if (!encryptedPassword) {
-      speak({ text: "Encryption failed.", lang: "en-IN" });
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.name || !form.password) {
+      speak({ text: "Both name and password are required.", lang: "en-IN" });
       return;
     }
 
-    // 3. Send encrypted password to backend
-    const response = await fetch("http://localhost:8000/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, password: encryptedPassword }),
-    });
+    try {
+      const pubRes = await fetch("http://localhost:8000/keys/public.pem");
+      const publicKey = await pubRes.text();
 
-    const data = await response.json();
+      const encryptor = new JSEncrypt();
+      encryptor.setPublicKey(publicKey);
+      const encryptedPassword = encryptor.encrypt(form.password);
 
-    if (response.ok) {
-      speak({
-        text: `Thank you ${form.name}. You are signed up successfully.`,
-        lang: "en-IN",
+      if (!encryptedPassword) {
+        speak({ text: "Encryption failed.", lang: "en-IN" });
+        return;
+      }
+
+      const response = await fetch("http://localhost:8000/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, password: encryptedPassword }),
       });
-      setTimeout(() => {
-        window.speechSynthesis.cancel();
-        navigate("/greet");
-      }, 1000);
-    } else {
-      speak({
-        text: data?.message || "Registration failed. Please try again.",
-        lang: "en-IN",
-      });
-      console.error("❌ Backend Error:", data);
+
+      const data = await response.json();
+
+      if (response.ok) {
+        speak({
+          text: `Thank you ${form.name}. You are signed up successfully.`,
+          lang: "en-IN",
+        });
+        setTimeout(() => {
+          window.speechSynthesis.cancel();
+          navigate("/greet");
+        }, 1000);
+      } else {
+        speak({
+          text: data?.message || "Registration failed. Please try again.",
+          lang: "en-IN",
+        });
+        console.error("❌ Backend Error:", data);
+      }
+    } catch (error) {
+      speak({ text: "Something went wrong. Please try again.", lang: "en-IN" });
+      console.error("❌ Network Error:", error);
     }
-  } catch (error) {
-    speak({ text: "Something went wrong. Please try again.", lang: "en-IN" });
-    console.error("❌ Network Error:", error);
-  }
-};
+  };
 
   const toggleListening = () => {
     if (listening) stop();
@@ -123,33 +119,30 @@ const handleSubmit = async (e) => {
   };
 
   return (
-    <div className="w-full h-screen flex items-center justify-center bg-[#ECECEC]">
+    <div className="w-full min-h-screen flex items-center justify-center bg-[#ECECEC] p-4">
       <div
         ref={cardRef}
-        className="flex flex-col items-center justify-center w-full max-w-md border border-gray-400 rounded-xl p-8 shadow-md bg-cover bg-center hover:border-zinc-800 cursor-pointer"
+        className="w-full sm:max-w-md md:max-w-md lg:max-w-md bg-white/70 border border-gray-400 rounded-xl p-6 sm:p-8 shadow-md bg-cover bg-center hover:border-zinc-800"
         style={{
           backgroundImage:
             "url('http://frankjdimaurodmd.com/wp-content/uploads/2015/03/minimalistic-white-fog-silver-digital-art-white-background-HD-Wallpapers.jpg')",
-          backgroundColor: "rgba(255, 255, 255, 0.3)",
           backgroundBlendMode: "lighten",
         }}
       >
         <h2
-          className="text-2xl font-bold mb-2"
+          className="text-3xl sm:text-2xl font-bold mb-4 text-center"
           ref={(el) => (contentRefs.current[0] = el)}
         >
           SIGN UP
         </h2>
         <p
-          className="text-sm text-gray-700 mb-4 text-center"
+          className="text-sm text-gray-700 mb-6 text-center"
           ref={(el) => (contentRefs.current[1] = el)}
         >
-          Speak or type your details below.
-          <br />
-          Example: “My name is Rahul”
+          Speak or type your details below. <br /> Example: “My name is Rahul”
         </p>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"
             name="name"
@@ -182,7 +175,7 @@ const handleSubmit = async (e) => {
 
         <button
           onClick={toggleListening}
-          className={`mt-6 px-6 py-2 rounded text-white transition ${
+          className={`mt-6 w-full px-6 py-2 rounded text-white transition ${
             listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
           }`}
           ref={(el) => (contentRefs.current[5] = el)}
@@ -191,7 +184,7 @@ const handleSubmit = async (e) => {
         </button>
 
         <p
-          className="mt-4 text-sm text-gray-700 text-center"
+          className="mt-6 text-sm text-gray-700 text-center"
           ref={(el) => (contentRefs.current[6] = el)}
         >
           Already have an account?{" "}
@@ -205,5 +198,3 @@ const handleSubmit = async (e) => {
 };
 
 export default SignupPage;
-
-
