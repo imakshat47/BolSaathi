@@ -1,5 +1,5 @@
 
-
+// // export default ChatPage;
 // import React, { useState, useRef, useEffect } from "react";
 // import { useSpeechRecognition } from "react-speech-kit";
 // import { gsap } from "gsap";
@@ -8,8 +8,8 @@
 //   const [messages, setMessages] = useState([]);
 //   const [input, setInput] = useState("");
 //   const messagesEndRef = useRef(null);
-//   const chatRef = useRef(null);      // Grey block
-//   const inputRef = useRef(null);     // Input and buttons
+//   const chatRef = useRef(null);      // Chat area animation
+//   const inputRef = useRef(null);     // Input bar animation
 
 //   const { listen, stop, listening } = useSpeechRecognition({
 //     onResult: (result) => {
@@ -25,24 +25,17 @@
 //     setInput("");
 
 //     try {
-//       const headers = {
-//         "Content-Type": "application/json",
-//       };
-
-//       const form_data = {
-//         session_id: "john1",
-//         user_input: input,
-//       };
-
-//       const res = await fetch("http://localhost:8000/query", {
+//       const res = await fetch("https://bolsaathi.onrender.com/query", {
 //         method: "POST",
-//         headers,
-//         body: JSON.stringify(form_data),
+//         headers: { "Content-Type": "application/json" },
+//         body: JSON.stringify({
+//           session_id: "john1",
+//           user_input: input,
+//         }),
 //       });
 
 //       const data = await res.json();
 //       const botReply = data.data.details || "Sorry, no details found.";
-
 //       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
 //     } catch (err) {
 //       console.error("Fetch error:", err);
@@ -61,28 +54,31 @@
 //     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 //   }, [messages]);
 
-//   // GSAP animation on load
+//   // Initial animations on mount
 //   useEffect(() => {
 //     gsap.fromTo(
 //       chatRef.current,
 //       { x: -100, opacity: 0 },
-//       { x: 0, opacity: 1, duration: 1, ease: "power2.out" }
+//       { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" }
 //     );
-
 //     gsap.fromTo(
 //       inputRef.current,
 //       { x: 100, opacity: 0 },
-//       { x: 0, opacity: 1, duration: 1, delay: 0.3, ease: "power2.out" }
+//       { x: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power2.out" }
 //     );
 //   }, []);
 
 //   return (
 //     <div className="flex flex-col h-screen p-4 bg-gray-200">
-//       <h2 className="text-2xl font-bold mb-4">Chat with Bol Saathi</h2>
+//       {/* Title OUTSIDE the grey chat block */}
+//       <h2 className="text-2xl font-bold mb-4 text-center text-gray-700">
+//         Chat with Bol Saathi
+//       </h2>
 
+//       {/* Chat Box */}
 //       <div
 //         ref={chatRef}
-//         className="flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm opacity-100"
+//         className="flex flex-col flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
 //       >
 //         {messages.map((msg, idx) => (
 //           <div
@@ -103,10 +99,8 @@
 //         <div ref={messagesEndRef} />
 //       </div>
 
-//       <div
-//         ref={inputRef}
-//         className="flex items-center gap-2 opacity-100"
-//       >
+//       {/* Input & Buttons */}
+//       <div ref={inputRef} className="flex items-center gap-2">
 //         <input
 //           className="border p-2 rounded w-full"
 //           placeholder="Ask something..."
@@ -134,6 +128,8 @@
 // };
 
 // export default ChatPage;
+
+
 import React, { useState, useRef, useEffect } from "react";
 import { useSpeechRecognition } from "react-speech-kit";
 import { gsap } from "gsap";
@@ -142,8 +138,8 @@ const ChatPage = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
-  const chatRef = useRef(null);      // Chat area animation
-  const inputRef = useRef(null);     // Input bar animation
+  const chatRef = useRef(null);
+  const inputRef = useRef(null);
 
   const { listen, stop, listening } = useSpeechRecognition({
     onResult: (result) => {
@@ -188,7 +184,6 @@ const ChatPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Initial animations on mount
   useEffect(() => {
     gsap.fromTo(
       chatRef.current,
@@ -203,16 +198,16 @@ const ChatPage = () => {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen p-4 bg-gray-200">
-      {/* Title OUTSIDE the grey chat block */}
-      <h2 className="text-2xl font-bold mb-4 text-center text-gray-700">
+    <div className="flex flex-col min-h-screen max-h-screen p-3 sm:p-4 bg-gray-200">
+      {/* Header */}
+      <h2 className="text-lg sm:text-2xl font-bold mb-3 text-center text-gray-700">
         Chat with Bol Saathi
       </h2>
 
       {/* Chat Box */}
       <div
         ref={chatRef}
-        className="flex flex-col flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
+        className="flex flex-col flex-grow border p-3 sm:p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
       >
         {messages.map((msg, idx) => (
           <div
@@ -220,7 +215,7 @@ const ChatPage = () => {
             className={`mb-2 ${msg.from === "user" ? "text-right" : "text-left"}`}
           >
             <span
-              className={`inline-block px-4 py-2 rounded-lg ${
+              className={`inline-block px-3 py-2 rounded-lg text-sm sm:text-base ${
                 msg.from === "user"
                   ? "bg-white text-blue-800"
                   : "bg-white text-gray-800 border"
@@ -234,28 +229,33 @@ const ChatPage = () => {
       </div>
 
       {/* Input & Buttons */}
-      <div ref={inputRef} className="flex items-center gap-2">
+      <div
+        ref={inputRef}
+        className="flex flex-col sm:flex-row items-stretch gap-2"
+      >
         <input
-          className="border p-2 rounded w-full"
+          className="border p-2 rounded w-full text-sm"
           placeholder="Ask something..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-        <button
-          onClick={toggleListening}
-          className={`px-4 py-2 rounded text-white ${
-            listening ? "bg-red-600" : "bg-green-600"
-          }`}
-        >
-          {listening ? "Stop" : "🎤"}
-        </button>
-        <button
-          onClick={handleSend}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Send
-        </button>
+        <div className="flex gap-2 sm:gap-1">
+          <button
+            onClick={toggleListening}
+            className={`w-full sm:w-auto px-4 py-2 text-sm rounded text-white ${
+              listening ? "bg-red-600" : "bg-green-600"
+            }`}
+          >
+            {listening ? "Stop" : "🎤"}
+          </button>
+          <button
+            onClick={handleSend}
+            className="w-full sm:w-auto px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );

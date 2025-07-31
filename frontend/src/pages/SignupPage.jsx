@@ -130,13 +130,13 @@ const SignupPage = () => {
         }}
       >
         <h2
-          className="text-3xl sm:text-2xl font-bold mb-4 text-center"
+          className="text-[20px] sm:text-xl font-bold mb-4 text-center"
           ref={(el) => (contentRefs.current[0] = el)}
         >
           SIGN UP
         </h2>
         <p
-          className="text-sm text-gray-700 mb-6 text-center"
+          className="text-[10px] sm:text-[15px] text-gray-700 mb-6 text-center"
           ref={(el) => (contentRefs.current[1] = el)}
         >
           Speak or type your details below. <br /> Example: “My name is Rahul”
@@ -148,7 +148,7 @@ const SignupPage = () => {
             name="name"
             placeholder="Your Name"
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="w-full text-[10px] sm:text-[15px] px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
             value={form.name}
             onChange={handleChange}
             ref={(el) => (contentRefs.current[2] = el)}
@@ -158,7 +158,7 @@ const SignupPage = () => {
             name="password"
             placeholder="Password"
             required
-            className="w-full px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="w-full px-4 py-2 border text-[10px] sm:text-[15px] border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-gray-500"
             value={form.password}
             onChange={handleChange}
             ref={(el) => (contentRefs.current[3] = el)}
@@ -166,7 +166,7 @@ const SignupPage = () => {
 
           <button
             type="submit"
-            className="w-full bg-[#31699e] text-white py-2 rounded hover:bg-blue-800 transition"
+            className="w-full bg-[#31699e] text-[10px] sm:text-[15px]  text-white py-2 rounded hover:bg-blue-800 transition"
             ref={(el) => (contentRefs.current[4] = el)}
           >
             Sign Up
@@ -175,7 +175,7 @@ const SignupPage = () => {
 
         <button
           onClick={toggleListening}
-          className={`mt-6 w-full px-6 py-2 rounded text-white transition ${
+          className={`mt-4 w-full px-6 text-[10px] sm:text-[15px] py-2 rounded text-white transition ${
             listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
           }`}
           ref={(el) => (contentRefs.current[5] = el)}
@@ -184,7 +184,7 @@ const SignupPage = () => {
         </button>
 
         <p
-          className="mt-6 text-sm text-gray-700 text-center"
+          className="mt-6 text-sm text-gray-700 text-center text-[10px] sm:text-[15px]"
           ref={(el) => (contentRefs.current[6] = el)}
         >
           Already have an account?{" "}

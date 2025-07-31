@@ -288,67 +288,134 @@ const GreetingPage = () => {
   };
 
   return (
+    // <div
+    //   className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 space-y-6"
+    //   onClick={handleScreenClick}
+    // >
+    //   <img
+    //     src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
+    //     alt="Background"
+    //     className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
+    //   />
+
+    //   <div
+    //     ref={cardRef}
+    //     className="relative z-10 bg-white/70 p-10 rounded-xl shadow-lg w-full max-w-xl opacity-100"
+    //   >
+    //     <h2
+    //       ref={greetingRef}
+    //       className="text-4xl font-semibold mb-4 opacity-100"
+    //     >
+    //       Greeting you...
+    //     </h2>
+    //     <p
+    //       ref={paraRef}
+    //       className="text-gray-700 dark:text-gray-300 text-xl mb-6 opacity-100"
+    //     >
+    //       Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
+    //     </p>
+
+    //     <textarea
+    //       ref={inputRef}
+    //       value={userInput}
+    //       onChange={(e) => {
+    //         setUserInput(e.target.value);
+    //         setShowSubmit(e.target.value.trim().length > 0);
+    //       }}
+    //       placeholder=""
+    //       className="w-full h-32 p-4 border border-gray-300 rounded-lg text-lg opacity-100"
+    //     />
+
+    //     <div ref={buttonsRef} className="flex justify-center mt-4 space-x-4 opacity-100">
+    //       {supported && (
+    //         <button
+    //           onClick={handleListenClick}
+    //           className={`px-6 py-2 rounded-lg shadow text-white transition ${
+    //             listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+    //           }`}
+    //         >
+    //           {listening ? "Stop Listening" : "🎙️ Listen"}
+    //         </button>
+    //       )}
+
+    //       {showSubmit && (
+    //         <button
+    //           onClick={handleSubmit}
+    //           className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition"
+    //         >
+    //           Submit
+    //         </button>
+    //       )}
+    //     </div>
+    //   </div>
+    // </div>
+
     <div
-      className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 space-y-6"
-      onClick={handleScreenClick}
+  className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-10 sm:px-6 lg:px-8 space-y-6 "
+  onClick={handleScreenClick}
+>
+  <img
+    src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
+    alt="Background"
+    className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
+  />
+
+  <div
+    ref={cardRef}
+    className="relative z-10 bg-white/80 backdrop-blur-md p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md sm:max-w-lg lg:max-w-xl  "
+  >
+    <h2
+      ref={greetingRef}
+      className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-4"
     >
-      <img
-        src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
-        alt="Background"
-        className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
-      />
+      Greeting you...
+    </h2>
 
-      <div
-        ref={cardRef}
-        className="relative z-10 bg-white/70 p-10 rounded-xl shadow-lg w-full max-w-xl opacity-100"
-      >
-        <h2
-          ref={greetingRef}
-          className="text-4xl font-semibold mb-4 opacity-100"
+    <p
+      ref={paraRef}
+      className="text-gray-700 dark:text-gray-300 text-base sm:text-lg md:text-xl mb-6"
+    >
+      Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
+    </p>
+
+    <textarea
+      ref={inputRef}
+      value={userInput}
+      onChange={(e) => {
+        setUserInput(e.target.value);
+        setShowSubmit(e.target.value.trim().length > 0);
+      }}
+      placeholder="Tell us about yourself..."
+      className="w-full h-28 sm:h-32 md:h-36 p-3 sm:p-4 border border-gray-300 rounded-lg text-base sm:text-lg resize-none"
+    />
+
+    <div
+      ref={buttonsRef}
+      className="flex flex-col sm:flex-row justify-center mt-6 gap-4"
+    >
+      {supported && (
+        <button
+          onClick={handleListenClick}
+          className={`px-6 py-2 rounded-lg shadow text-white text-base sm:text-lg transition ${
+            listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+          }`}
         >
-          Greeting you...
-        </h2>
-        <p
-          ref={paraRef}
-          className="text-gray-700 dark:text-gray-300 text-xl mb-6 opacity-100"
+          {listening ? "Stop Listening" : "🎙️ Listen"}
+        </button>
+      )}
+
+      {showSubmit && (
+        <button
+          onClick={handleSubmit}
+          className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow text-base sm:text-lg hover:bg-blue-800 transition"
         >
-          Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
-        </p>
-
-        <textarea
-          ref={inputRef}
-          value={userInput}
-          onChange={(e) => {
-            setUserInput(e.target.value);
-            setShowSubmit(e.target.value.trim().length > 0);
-          }}
-          placeholder=""
-          className="w-full h-32 p-4 border border-gray-300 rounded-lg text-lg opacity-100"
-        />
-
-        <div ref={buttonsRef} className="flex justify-center mt-4 space-x-4 opacity-100">
-          {supported && (
-            <button
-              onClick={handleListenClick}
-              className={`px-6 py-2 rounded-lg shadow text-white transition ${
-                listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
-              }`}
-            >
-              {listening ? "Stop Listening" : "🎙️ Listen"}
-            </button>
-          )}
-
-          {showSubmit && (
-            <button
-              onClick={handleSubmit}
-              className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition"
-            >
-              Submit
-            </button>
-          )}
-        </div>
-      </div>
+          Submit
+        </button>
+      )}
     </div>
+  </div>
+</div>
+
   );
 };
 
