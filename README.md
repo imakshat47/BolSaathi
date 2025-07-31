@@ -66,6 +66,7 @@ BolSaathi is a multilingual React web application built to provide conversationa
 - i18next (localization)
 - React Speech Kit (voice input)
 - Tailwind CSS (styling)
+- GSAP  (Animations)
 <hr>
 ## 📁 Folder Structure
 frontend/
