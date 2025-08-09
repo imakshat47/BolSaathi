@@ -87,7 +87,7 @@ frontend/
 ## ⚙️ Setup Instructions
 
 ### 1. Clone the Repository
-git clone https://github.com/imakshat47/BolSaathi.git
+git clone <repo> or extract the Zip
 cd BolSaathi/frontend
 
 ### 2.Install Dependencies
