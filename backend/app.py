@@ -1,297 +1,487 @@
-# from __future__ import annotations as _annotations
-# import uvicorn
-# import asyncio
-# import os
-# import uuid
-# from dotenv import load_dotenv
-# import json
-# from pydantic import BaseModel, ValidationError
-# from tavily import TavilyClient
-# from typing import Dict, Any, Optional
-# from openai import AsyncOpenAI
-# from fastapi import FastAPI
-# from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.encoders import jsonable_encoder
-# from agents import (
-#     OpenAIChatCompletionsModel, Agent,
-#     HandoffOutputItem, ItemHelpers, MessageOutputItem,
-#     RunContextWrapper, Runner,
-#     ToolCallItem, ToolCallOutputItem, TResponseInputItem,
-#     function_tool, handoff, trace,
-#     set_tracing_disabled
-# )
-# from agents.extensions.handoff_prompt import RECOMMENDED_PROMPT_PREFIX
-# # logger
-# import logging
-# logger = logging.getLogger(__name__)
-# # Disbale warnings
-# import urllib3
-# urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from __future__ import annotations as _annotations
 
-# # Load environment variables
-# print(load_dotenv())
-# set_tracing_disabled(disabled=True)
-# # Key
-# groq_base_url = os.environ.get("GROQ_OPENAI_BASE_URL")
-# groq_api_key = os.environ.get("GROQ_API_KEY")
-# tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+"""
+FastAPI LLM Microservice (multi-endpoint, provider-agnostic)
 
-# model = "deepseek-r1-distill-llama-70b"
-# model = "meta-llama/llama-4-maverick-17b-128e-instruct"
+Features
+- Endpoints: /summarize, /qa, /extract_entities, /generate_note, /introduction, /query
+- Clean service layer (LLMService + Provider adapters)
+- Structured prompting (system+user), reusable templates
+- Multiple providers: OpenAI-compatible (incl. Groq/OpenRouter via base_url), HuggingFace (stub)
+- Pydantic request/response models per endpoint
+- Async, logging, error handling, CORS
+- Extensible design
 
-# custom_model = OpenAIChatCompletionsModel(
-#     model=model,
-#     openai_client=AsyncOpenAI(base_url=groq_base_url, api_key=groq_api_key)
-# )
+Environment (examples)
+- OPENAI_API_KEY=sk-...
+- OPENAI_BASE_URL=https://api.openai.com/v1           # or Groq/OpenRouter OpenAI-compatible endpoint
+- OPENAI_MODEL=gpt-4o-mini
+- HF_API_URL=http://localhost:8080/generate           # optional (Text Generation Inference) 
+- HF_MODEL=meta-llama/Llama-3-8B-Instruct
+- TAVILY_API_KEY=...
+"""
 
-# # Context
-# class IntroductionAgentContext(BaseModel):    
-#     user_input: str | None
-#     context: list[str] = []
-
-# class QueryRequest(BaseModel):
-#     session_id: str
-#     user_input: str
-
-# class IntroductionRequest(BaseModel):
-#     session_id: str
-#     user_input: str
-
-# class JsonResponse(BaseModel):
-#     data: Optional[Dict[str, Any]] = None
-#     status: int = 200
-
-# session_contexts= {}
-# session_inputs: dict[str, list[TResponseInputItem]] = {}
-# session_histories = {}
-
-# ### TOOLS
-# # Tool to search government scheme info
-# @function_tool(
-#     name_override="gov_scheme_search",
-#     description_override="Search for relevant government schemes using question and personal context."
-# )
-# async def search_scheme_tool(question: str, context: str) -> str:
-#     query = f"{question}. User context: {context}"
-#     resp = tavily.get_search_context(query="What happened during the Burning Man floods?")
-#     return resp
-#     resp = tavily.search(query)
-#     # Extract top 3 results
-#     items = resp.get("results", [])[:3]
-#     summary = "\n".join(f"- {i.get('title')}: {i.get('content')[:200]}..." for i in items)
-#     urls = "\n".join(i.get("url", "") for i in items)
-#     return f"Search Results:\n{summary}\nLinks:\n{urls}"
-
-# json_user_form = {
-#     'name': '',
-#     'age': '',
-#     'gender': '',
-#     'profession': '',
-#     'place': '',
-#     'other detials': {},
-# }
-
-# ### AGENT
-# introduction_agent = Agent[IntroductionAgentContext](    
-#     name="Introduction Agent",
-#     model=custom_model,
-#     handoff_description="An intelligent agent that extracts details from user introduction.",
-#     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-#     Extract user details and return valid JSON object only.        
-#     Rules:
-#     - Use only explicitly stated information
-#     - All values must be strings (age as "25" not 25)
-#     - Missing info = empty string ""
-#     - Additional details go in other_details as key-value pairs
-#     - Return JSON only, no markdown, no explanations, no <think> tags
-
-#     Output: Only JSON object body
-#     """,
-#     tools=[],
-# )
-
-# chat_agent = Agent(
-#     name="chat Agent",
-#     model=custom_model,
-#     # tools=[search_scheme_tool],
-#     # handoff_description="This agent chats candidates and also helps search government schemes.",
-#     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-#     You are a professional assistant capable of real-time web search and reasoning using tools.
-#     Your goal: help users find relevant government schemes based on their personal context (e.g., age, location, profession).
-  
-#     **Instruction Flow (ReAct-style reasoning):**
-#     1. **Think** about whether the user’s query requires a search.
-#     2. If yes, **call** `gov_scheme_search` with a concise query combining the question and user context.
-#     3. **Observe** the results and then construct your answer.
-#     4. **Decide** if further search is needed or proceed to final response.
-
-#     **IMPORTANT**: Always reply strictly in this JSON format:
-
-#     {{
-#       "response": "<friendly, concise reply summarizing scheme eligibility or recommendations>",
-#       "support_links": ["<url1>", "<url2>", ...]
-#     }}
-
-#     - If you used the search tool, include relevant URLs in `support_links`.
-#     - If no search was needed and your internal knowledge sufficed, `support_links` may be an empty array `[]`.
-
-#     Format agent responses only as JSON:
-#     {{
-#       "response": "...",
-#       "support_links": "...",      
-#     }}
-#     """,
-# )
-
-
-# format_agent = Agent(
-#     name="format Agent",
-#     model=custom_model,
-#     instructions=f"""{RECOMMENDED_PROMPT_PREFIX}
-#     You are a professional assistant capable of rephrasing content into well‑formatted, human‑understandable text.
-
-# Your responsibilities:
-# 1. Accept **any type of input**—structured data, technical description, raw text, code comments, etc.
-# 2. Rephrase and output it in a **single formatted paragraph**, using proper grammar, explanatory tone, and readable style.
-
-#     """,
-# )
-
-# ### FASTAPI APP
-# app = FastAPI()
-# # CORS configuration
-# app.add_middleware(
-#     CORSMiddleware,         
-#     allow_origins=["*"],
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
-
-# @app.get("/")
-# async def root():
-#     return {"message": "Hello there!!"}
-
-# @app.post("/query", response_model=JsonResponse)
-# async def query(req: QueryRequest):
-#     cid = req.session_id    
-#     context = session_contexts.get(cid, req.user_input)
-#     history = session_histories.get(cid, []) + [{"role":"user","content":req.user_input}]
-
-#      # Run Agent
-#     with trace("Chat", group_id=cid):
-#         result = await Runner.run(chat_agent, history, context=context, max_turns=3)    
-#         result = await Runner.run(format_agent, result.final_output, max_turns=3)    
-    
-#     output_json = {
-#         'details': result.final_output
-#     }
-
-#     # Persist session state
-#     session_contexts[cid] = context
-#     session_histories[cid] = result.to_input_list()
-#     print(jsonable_encoder(output_json))
-#     return JsonResponse(data=jsonable_encoder(output_json))    
-
-# @app.post("/introduction", response_model=JsonResponse)
-# async def introduction_endpoint(req: IntroductionRequest):
-#     session_id = req.session_id
-#     user_input = req.user_input
-
-#     # Initialize context and history
-#     # context = session_contexts.get(session_id)
-#     # input_items = session_inputs.get(session_id, [])
-
-#     # if not input_items:
-#     #     # First message in the session
-#     #     input_items.append({"content": """
-#     #     Extract user details and return valid JSON object only.        
-#     #         Rules:
-#     #         - Use only explicitly stated information
-#     #         - All values must be strings (age as "25" not 25)
-#     #         - Missing info = empty string ""
-#     #         - Additional details go in other_details as key-value pairs
-#     #         - Return JSON only, no markdown, no explanations, no <think> tags
-#     #     Output: Only JSON object body""", "role": "assistant"})
-
-#     user_input = f"""
-#     Input: "{user_input}"
-#     Required output format:
-#     {json_user_form}
-#     """
-#     # input_items.append({"content": user_input, "role": "user"})    
-    
-#     # Run Agent
-#     with trace("Introduction", group_id=session_id):
-#         result = await Runner.run(introduction_agent, user_input, max_turns=3)    
-#     output_json = json.loads(result.final_output)    
-#     print(output_json)
-#     # Persist session state    
-#     # session_inputs[session_id] = result.to_input_list()
-#     return JsonResponse(data=output_json)    
-
-# async def main():
-#     # await introduction_endpoint(IntroductionRequest(session_id="test",user_input="I'm Ramesh, male, a labor working at dhbn company, I'm 40 yrs old and lives in dhulia and very poor."))
-#     await query(QueryRequest(session_id="test",user_input="What government schemes are available for unemployed youth in Delhi looking to start a small business?",))
-
-# if __name__ == "__main__":
-#     # asyncio.run(main())
-#     port = int(os.environ.get('PORT', 5000))  # Use PORT environment variable or default to 4000
-#     uvicorn.run("app:app", host="0.0.0.0", port=port , reload=True, log_level="info")
-
-
-
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import os
-from openai import OpenAI
-from tavily import TavilyClient
+import json
+import uuid
+import logging
+import asyncio
+from typing import Any, Dict, List, Optional, Literal, Union
 
-# Load environment variables from .env file
+import uvicorn
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.encoders import jsonable_encoder
+from pydantic import BaseModel, Field, ValidationError
+
+# --- Load env & logging -------------------------------------------------------
 load_dotenv()
+logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+logger = logging.getLogger("llm-service")
 
-# Initialize FastAPI app
-app = FastAPI()
+# --- Optional external clients -----------------------------------------------
+from tavily import TavilyClient  # For your existing /query workflow
+from openai import AsyncOpenAI    # OpenAI-compatible async client
 
-# Enable CORS
+
+# =============================================================================
+# Provider Layer
+# =============================================================================
+
+class ProviderConfig(BaseModel):
+    provider: Literal["openai", "huggingface"] = Field(
+        default=os.getenv("PROVIDER", "openai")
+    )
+    # OpenAI-compatible
+    openai_api_key: Optional[str] = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
+    openai_base_url: Optional[str] = Field(default_factory=lambda: os.getenv("OPENAI_BASE_URL"))
+    openai_model: str = Field(default=os.getenv("OPENAI_MODEL", "gpt-4o-mini"))
+    # HuggingFace / TGI (stubbed)
+    hf_api_url: Optional[str] = Field(default_factory=lambda: os.getenv("HF_API_URL"))
+    hf_model: Optional[str] = Field(default_factory=lambda: os.getenv("HF_MODEL"))
+
+class LLMMessage(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str
+
+class LLMResponse(BaseModel):
+    text: str
+    raw: Optional[Dict[str, Any]] = None
+
+class BaseLLMClient:
+    async def acomplete(self, messages: List[LLMMessage], **kwargs) -> LLMResponse:
+        raise NotImplementedError
+
+class OpenAICompatClient(BaseLLMClient):
+    """
+    Works with OpenAI and OpenAI-compatible endpoints (Groq/OpenRouter) via base_url.
+    """
+    def __init__(self, cfg: ProviderConfig):
+        if not cfg.openai_api_key:
+            raise RuntimeError("OPENAI_API_KEY missing")
+        self.client = AsyncOpenAI(api_key=cfg.openai_api_key, base_url=cfg.openai_base_url)
+        self.model = cfg.openai_model
+
+    async def acomplete(self, messages: List[LLMMessage], **kwargs) -> LLMResponse:
+        try:
+            resp = await self.client.chat.completions.create(
+                model=kwargs.get("model", self.model),
+                messages=[m.dict() for m in messages],
+                temperature=kwargs.get("temperature", 0.2),
+                max_tokens=kwargs.get("max_tokens", 1200),
+                response_format=kwargs.get("response_format")  # can be {"type":"json_object"}
+            )
+            text = resp.choices[0].message.content or ""
+            return LLMResponse(text=text, raw=resp.model_dump())
+        except Exception as e:
+            logger.exception("OpenAICompatClient error")
+            raise HTTPException(status_code=502, detail=f"LLM upstream error: {e}")
+
+class HFStubClient(BaseLLMClient):
+    """
+    Minimal HuggingFace/TGI stub. Replace with real HTTP calls to your inference server.
+    Intent: keep interface compatible for easy swap.
+    """
+    def __init__(self, cfg: ProviderConfig):
+        if not cfg.hf_api_url:
+            logger.warning("HF_API_URL not set; HF client will raise if used.")
+        self.api_url = cfg.hf_api_url
+        self.model = cfg.hf_model or "unknown"
+
+    async def acomplete(self, messages: List[LLMMessage], **kwargs) -> LLMResponse:
+        # For demonstration: join messages into a simple prompt and echo.
+        # Replace with real TGI call using httpx and your server's schema.
+        if not self.api_url:
+            raise HTTPException(status_code=500, detail="HF_API_URL not configured.")
+        prompt = "\n".join(f"{m.role.upper()}: {m.content}" for m in messages) + "\nASSISTANT:"
+        text = f"[HF-STUB:{self.model}] {prompt[:400]}"
+        return LLMResponse(text=text, raw={"stub": True})
+
+
+def build_llm_client(cfg: ProviderConfig) -> BaseLLMClient:
+    if cfg.provider == "openai":
+        return OpenAICompatClient(cfg)
+    elif cfg.provider == "huggingface":
+        return HFStubClient(cfg)
+    else:
+        raise RuntimeError(f"Unsupported provider: {cfg.provider}")
+
+
+# =============================================================================
+# Prompt Factory
+# =============================================================================
+
+class PromptFactory:
+    @staticmethod
+    def system_summarize() -> str:
+        return (
+            "You are a careful medical/technical summarizer. "
+            "Produce faithful, concise summaries. Preserve key facts, units, and numbers."
+        )
+
+    @staticmethod
+    def user_summarize(text: str, style: Literal["abstractive","extractive"]="abstractive", length: Literal["short","medium","long"]="medium") -> str:
+        return (
+            f"Summarize the following content.\n"
+            f"Style: {style}\n"
+            f"Target length: {length}\n\n"
+            f"CONTENT:\n{text}"
+        )
+
+    @staticmethod
+    def system_qa() -> str:
+        return (
+            "You are a precise question-answering assistant. "
+            "Only answer using the provided context. If insufficient, say you do not have enough information."
+        )
+
+    @staticmethod
+    def user_qa(question: str, context: str) -> str:
+        return (
+            f"Question: {question}\n"
+            f"Use ONLY this context:\n{context}\n"
+            f"Answer with a direct, concise response. If context is insufficient, state that."
+        )
+
+    @staticmethod
+    def system_entities() -> str:
+        return (
+            "You are a clinical NLP extractor. Extract entities and return STRICT JSON with these keys:\n"
+            "problems[], medications[], allergies[], procedures[], tests[], dates[], clinicians[]. "
+            "Each item must be an object with text and any relevant attributes (e.g., dose, route, frequency)."
+        )
+
+    @staticmethod
+    def user_entities(text: str) -> str:
+        return f"Extract entities from the following text and output valid JSON only:\n\n{text}"
+
+    @staticmethod
+    def system_note() -> str:
+        return (
+            "You are a clinical documentation assistant. Generate a structured SOAP note JSON.\n"
+            "Return STRICT JSON with keys: subjective, objective, assessment[], plan[], "
+            "icd10_codes[], snomed_codes[], medications_to_start[], follow_up[]."
+        )
+
+    @staticmethod
+    def user_note(transcript: str, chart_context: Optional[str]) -> str:
+        return (
+            "From the patient-clinician transcript (and chart context if provided), "
+            "generate a high-quality SOAP note in STRICT JSON.\n\n"
+            f"TRANSCRIPT:\n{transcript}\n\n"
+            f"CHART_CONTEXT:\n{chart_context or '(none)'}"
+        )
+
+    @staticmethod
+    def system_introduction() -> str:
+        return (
+            "Extract user details and return valid JSON object only. "
+            "Rules:\n"
+            "- Use only explicitly stated information\n"
+            '- All values must be strings (age as "25" not 25)\n'
+            '- Missing info = empty string ""\n'
+            "- Additional details go in other_details as key-value pairs\n"
+            "- Return JSON only, no markdown"
+        )
+
+    @staticmethod
+    def user_introduction(user_input: str, json_schema_example: Dict[str, Any]) -> str:
+        return (
+            f'Input: "{user_input}"\n'
+            "Required output format (fill missing with empty strings):\n"
+            f"{json.dumps(json_schema_example, ensure_ascii=False)}"
+        )
+
+
+# =============================================================================
+# LLM Service (reusable)
+# =============================================================================
+
+class LLMService:
+    def __init__(self, cfg: ProviderConfig):
+        self.cfg = cfg
+        self.client = build_llm_client(cfg)
+
+    async def complete(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        response_format: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> LLMResponse:
+        messages = [
+            LLMMessage(role="system", content=system_prompt),
+            LLMMessage(role="user", content=user_prompt),
+        ]
+        return await self.client.acomplete(messages, response_format=response_format, **kwargs)
+
+
+# =============================================================================
+# FastAPI App & Schemas
+# =============================================================================
+
+app = FastAPI(title="LLM Augmented Docs API", version="1.0.0")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this in production
+    allow_origins=os.getenv("CORS_ALLOW_ORIGINS", "*").split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Get API keys from environment
-groq_api_key = os.getenv("GROQ_API_KEY")
-groq_base_url = os.getenv("GROQ_OPENAI_BASE_URL")
-tavily_api_key = os.getenv("TAVILY_API_KEY")
+cfg = ProviderConfig()
+llm_service = LLMService(cfg)
+tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
-# Initialize clients
-groq_client = OpenAI(api_key=groq_api_key, base_url=groq_base_url)
-tavily_client = TavilyClient(api_key=tavily_api_key)
+# ---- Session stores (simple in-memory demo) ---------------------------------
+session_contexts: Dict[str, Any] = {}
+session_histories: Dict[str, List[Dict[str, Any]]] = {}
+
+# ---- Common Models -----------------------------------------------------------
+
+class HealthResponse(BaseModel):
+    status: str
+    provider: str
+    model: str
+
+class ErrorResponse(BaseModel):
+    detail: str
+
+class JsonResponse(BaseModel):
+    data: Optional[Dict[str, Any]] = None
+    status: int = 200
+
+# ---- New Endpoint Models ----------------------------------------------------
+
+class SummarizeRequest(BaseModel):
+    text: str
+    style: Literal["abstractive","extractive"] = "abstractive"
+    length: Literal["short","medium","long"] = "medium"
+
+class SummarizeResponse(BaseModel):
+    summary: str
+
+class QARequest(BaseModel):
+    question: str
+    context: str
+
+class QAResponse(BaseModel):
+    answer: str
+    sufficient_context: bool
+
+class ExtractEntitiesRequest(BaseModel):
+    text: str
+
+class ExtractEntitiesResponse(BaseModel):
+    entities: Dict[str, Any]  # problems, medications, etc.
+
+class GenerateNoteRequest(BaseModel):
+    transcript: str
+    chart_context: Optional[str] = None
+
+class GenerateNoteResponse(BaseModel):
+    note: Dict[str, Any]  # structured SOAP JSON
+
+# ---- Backward-compatible introduction/query models --------------------------
+
+class IntroductionRequest(BaseModel):
+    session_id: str
+    user_input: str
+
+class QueryRequest(BaseModel):
+    session_id: str
+    user_input: str
+
+# Example user JSON schema
+JSON_USER_FORM = {
+    "name": "",
+    "age": "",
+    "gender": "",
+    "profession": "",
+    "place": "",
+    "other_details": {}
+}
+
+# =============================================================================
+# Routes
+# =============================================================================
+
+@app.get("/", response_model=HealthResponse)
+async def root():
+    return HealthResponse(status="ok", provider=cfg.provider, model=(cfg.openai_model if cfg.provider=="openai" else (cfg.hf_model or "unknown")))
 
 
-@app.get("/")
-def root():
-    return {"message": "BolSaathi backend running ✅"}
+@app.post("/summarize", response_model=SummarizeResponse, responses={502: {"model": ErrorResponse}})
+async def summarize(req: SummarizeRequest):
+    try:
+        sys_p = PromptFactory.system_summarize()
+        usr_p = PromptFactory.user_summarize(req.text, req.style, req.length)
+        res = await llm_service.complete(sys_p, usr_p)
+        return SummarizeResponse(summary=res.text.strip())
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("summarize failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/chat")
-async def chat(request: Request):
-    data = await request.json()
-    message = data.get("message", "")
-    
-    if not message:
-        return {"error": "Message is required."}
+@app.post("/qa", response_model=QAResponse, responses={502: {"model": ErrorResponse}})
+async def qa(req: QARequest):
+    try:
+        sys_p = PromptFactory.system_qa()
+        usr_p = PromptFactory.user_qa(req.question, req.context)
+        res = await llm_service.complete(sys_p, usr_p)
+        text = (res.text or "").strip()
+        insufficient = any(x in text.lower() for x in ["insufficient", "not enough", "cannot answer"])
+        return QAResponse(answer=text, sufficient_context=not insufficient)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("qa failed")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    response = groq_client.chat.completions.create(
-        model="llama3-8b-8192",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": message},
-        ],
-    )
 
-    return {"response": response.choices[0].message.content}
+@app.post("/extract_entities", response_model=ExtractEntitiesResponse, responses={502: {"model": ErrorResponse}})
+async def extract_entities(req: ExtractEntitiesRequest):
+    try:
+        sys_p = PromptFactory.system_entities()
+        usr_p = PromptFactory.user_entities(req.text)
+        res = await llm_service.complete(
+            sys_p,
+            usr_p,
+            response_format={"type": "json_object"}
+        )
+        # Fallback if model returns plain text JSON
+        parsed = None
+        try:
+            parsed = json.loads(res.text)
+        except Exception:
+            # Some providers put JSON in raw field; try to dig
+            parsed = {"raw": res.text}
+        return ExtractEntitiesResponse(entities=parsed)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("extract_entities failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/generate_note", response_model=GenerateNoteResponse, responses={502: {"model": ErrorResponse}})
+async def generate_note(req: GenerateNoteRequest):
+    try:
+        sys_p = PromptFactory.system_note()
+        usr_p = PromptFactory.user_note(req.transcript, req.chart_context)
+        res = await llm_service.complete(
+            sys_p,
+            usr_p,
+            response_format={"type": "json_object"},
+            temperature=0.1,
+            max_tokens=1600,
+        )
+        try:
+            note = json.loads(res.text)
+        except Exception:
+            note = {"raw": res.text}
+        return GenerateNoteResponse(note=note)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("generate_note failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Backward-Compatible Endpoints (from your original app)
+# =============================================================================
+
+@app.post("/introduction", response_model=JsonResponse)
+async def introduction_endpoint(req: IntroductionRequest):
+    try:
+        sys_p = PromptFactory.system_introduction()
+        usr_p = PromptFactory.user_introduction(req.user_input, JSON_USER_FORM)
+        res = await llm_service.complete(
+            sys_p,
+            usr_p,
+            response_format={"type": "json_object"},
+            max_tokens=600
+        )
+        try:
+            data = json.loads(res.text)
+        except Exception:
+            data = {"raw": res.text}
+        return JsonResponse(data=data)
+    except Exception as e:
+        logger.exception("introduction failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/query", response_model=JsonResponse)
+async def query(req: QueryRequest):
+    """
+    Preserves your previous behavior: conversational helper with optional web search (Tavily).
+    Now simplified into a deterministic JSON response.
+    """
+    try:
+        # (Optional) demonstrate a single Tavily call; adjust prompt to include links.
+        # NOTE: You can gate this behind heuristics if desired.
+        links: List[str] = []
+        try:
+            search = tavily.search(req.user_input, max_results=3)
+            links = [r.get("url") for r in search.get("results", []) if r.get("url")]
+        except Exception as te:
+            logger.warning(f"Tavily search failed: {te}")
+
+        sys_p = (
+            "You are a professional assistant. If links are provided, weave them into the response as evidence. "
+            "Return STRICT JSON with keys: response (string), support_links (array of strings)."
+        )
+        usr_p = (
+            f"User question: {req.user_input}\n"
+            f"These links may help:\n{json.dumps(links)}\n\n"
+            "Return JSON only."
+        )
+        res = await llm_service.complete(
+            sys_p,
+            usr_p,
+            response_format={"type": "json_object"},
+            max_tokens=600
+        )
+        try:
+            parsed = json.loads(res.text)
+        except Exception:
+            parsed = {"response": res.text, "support_links": links}
+        return JsonResponse(data=parsed)
+    except Exception as e:
+        logger.exception("query failed")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Startup & main
+# =============================================================================
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "5000"))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True, log_level=os.getenv("LOG_LEVEL", "info"))
