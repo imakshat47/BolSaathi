@@ -91,7 +91,7 @@ class PromptFactory:
 # LLM Utility
 # ---------------------------------------------------------------------
 
-PROMPT = """
+CHAT_PROMPT = """
 SYSTEM PROMPT:
 
 You are a professional and empathetic Healthcare Support Assistant.
@@ -109,33 +109,12 @@ Example response if off-topic:
 "I'm here to help with healthcare questions or wellness advice. Could you please share something related to your health or medical care?"
 """
 
-async def run_llm(messages: List[Dict[str,str]], json_mode=False, **kwargs) -> str:
+async def run_llm(messages: List[Dict[str,str]], json_mode=False, request_prompt="", **kwargs) -> str:
     try:
-        # resp = await client.chat.completions.create(
-        #     model=MODEL,
-        #     messages=messages,
-        #     temperature=kwargs.get("temperature",0.2),
-        #     max_tokens=kwargs.get("max_tokens",1200),
-        #     response_format={"type":"json_object"} if json_mode else None
-        # )
         response = await client.responses.create(
-            input= PROMPT + "\n".join(f"{m['role']}: {m['content']}" for m in messages),
+            input= request_prompt + "\n".join(f"{m['role']}: {m['content']}" for m in messages),
             model="openai/gpt-oss-20b",
-        )
-        # print(response.output_text)
-        # completion = await client.chat.completions.create(
-        #     model=MODEL,
-        #     messages=messages,
-        #     temperature=1,
-        #     max_completion_tokens=8192,
-        #     top_p=1,
-        #     reasoning_effort="medium",
-        #     stream=True,
-        #     stop=None
-        # )
-        # result = ""
-        # for chunk in completion:
-        #     result = chunk.choices[0].delta.content or ""
+        )    
         return response.output_text
     except Exception as e:
         logger.exception("Groq API error")
@@ -233,7 +212,7 @@ async def query(req: QueryRequest):
         links = [r.get("url") for r in res.get("results",[])]
     except Exception as e:
         logger.warning(f"Tavily failed: {e}")
-    out = await run_llm(PromptFactory.query(req.user_input, links), json_mode=True)
+    out = await run_llm(PromptFactory.query(req.user_input, links), json_mode=True, request_prompt=CHAT_PROMPT)
     try:
         return {"data": json.loads(out)}
     except Exception:
