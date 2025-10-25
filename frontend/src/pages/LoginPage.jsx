@@ -157,7 +157,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
+// import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import gsap from "gsap";
 
 const LoginPage = () => {
