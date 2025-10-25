@@ -145,28 +145,24 @@
 
 // export default GreetingPage;
 
-
 import React, { useEffect, useContext, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LanguageContext } from "../contexts/LanguageContext";
-import { useSpeechRecognition } from "react-speech-kit";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { gsap } from "gsap";
 
 const GreetingPage = () => {
   const navigate = useNavigate();
   const { changeLanguage } = useContext(LanguageContext);
+
   const [userInput, setUserInput] = useState("");
   const [showSubmit, setShowSubmit] = useState(true);
-  const [listening, setListening] = useState(false);
   const [hasSpokenOnClick, setHasSpokenOnClick] = useState(false);
 
-  const { listen, stop, listening: isListening, supported } = useSpeechRecognition({
-    onResult: (result) => {
-      setUserInput(result);
-      setShowSubmit(result.trim().length > 0);
-    },
-  });
+  const { transcript, listening, browserSupportsSpeechRecognition, resetTranscript } =
+    useSpeechRecognition();
 
+  // 🔊 Text-to-speech greeting
   const speakGreeting = () => {
     const utterance = new SpeechSynthesisUtterance(
       "Hello! Welcome to Bol Saathi. Let me detect your language."
@@ -183,6 +179,7 @@ const GreetingPage = () => {
   const inputRef = useRef(null);
   const buttonsRef = useRef(null);
 
+  // 🗣️ Auto language detection + greeting once
   useEffect(() => {
     const hasSpoken = sessionStorage.getItem("greetingSpoken");
 
@@ -207,46 +204,28 @@ const GreetingPage = () => {
     return () => clearTimeout(timer);
   }, [changeLanguage]);
 
+  // 🧠 Animate in
   useEffect(() => {
-  // Set initial state before animating
-  gsap.set([greetingRef.current, paraRef.current, inputRef.current, buttonsRef.current, cardRef.current], {
-    opacity: 0,
-    y: 40,
-  });
+    gsap.set(
+      [greetingRef.current, paraRef.current, inputRef.current, buttonsRef.current, cardRef.current],
+      { opacity: 0, y: 40 }
+    );
 
-  const tl = gsap.timeline();
+    const tl = gsap.timeline();
+    tl.to(greetingRef.current, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" })
+      .to(paraRef.current, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, "-=0.5")
+      .to(inputRef.current, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, "-=0.6")
+      .to(buttonsRef.current, { y: 0, opacity: 1, duration: 0.6, ease: "back.out(1.7)" }, "-=0.5")
+      .to(cardRef.current, { y: 0, opacity: 1, duration: 0.8, ease: "power2.out" }, "-=1");
+  }, []);
 
-  tl.to(greetingRef.current, {
-    y: 0,
-    opacity: 1,
-    duration: 0.8,
-    ease: "power2.out",
-  })
-    .to(paraRef.current, {
-      y: 0,
-      opacity: 1,
-      duration: 0.8,
-      ease: "power2.out",
-    }, "-=0.5")
-    .to(inputRef.current, {
-      y: 0,
-      opacity: 1,
-      duration: 0.8,
-      ease: "power2.out",
-    }, "-=0.6")
-    .to(buttonsRef.current, {
-      y: 0,
-      opacity: 1,
-      duration: 0.6,
-      ease: "back.out(1.7)",
-    }, "-=0.5")
-    .to(cardRef.current, {
-      y: 0,
-      opacity: 1,
-      duration: 0.8,
-      ease: "power2.out",
-    }, "-=1");
-}, []);
+  // 🗣️ Sync transcript into input
+  useEffect(() => {
+    if (transcript) {
+      setUserInput(transcript);
+      setShowSubmit(transcript.trim().length > 0);
+    }
+  }, [transcript]);
 
   const extractUserInfo = (text) => {
     const nameMatch = text.match(/I(?:'m| am)\s+([A-Za-z]+)/i);
@@ -267,16 +246,15 @@ const GreetingPage = () => {
 
   const handleSubmit = () => {
     const userData = extractUserInfo(userInput);
+    resetTranscript();
     navigate("/userinfo", { state: userData });
   };
 
   const handleListenClick = () => {
-    if (isListening) {
-      stop();
-      setListening(false);
+    if (listening) {
+      SpeechRecognition.stopListening();
     } else {
-      listen({ lang: "en-IN" });
-      setListening(true);
+      SpeechRecognition.startListening({ continuous: false, language: "en-IN" });
     }
   };
 
@@ -287,135 +265,81 @@ const GreetingPage = () => {
     }
   };
 
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="p-6 text-center text-red-600">
+        Sorry, your browser doesn’t support speech recognition.
+      </div>
+    );
+  }
+
   return (
-    // <div
-    //   className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 space-y-6"
-    //   onClick={handleScreenClick}
-    // >
-    //   <img
-    //     src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
-    //     alt="Background"
-    //     className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
-    //   />
-
-    //   <div
-    //     ref={cardRef}
-    //     className="relative z-10 bg-white/70 p-10 rounded-xl shadow-lg w-full max-w-xl opacity-100"
-    //   >
-    //     <h2
-    //       ref={greetingRef}
-    //       className="text-4xl font-semibold mb-4 opacity-100"
-    //     >
-    //       Greeting you...
-    //     </h2>
-    //     <p
-    //       ref={paraRef}
-    //       className="text-gray-700 dark:text-gray-300 text-xl mb-6 opacity-100"
-    //     >
-    //       Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
-    //     </p>
-
-    //     <textarea
-    //       ref={inputRef}
-    //       value={userInput}
-    //       onChange={(e) => {
-    //         setUserInput(e.target.value);
-    //         setShowSubmit(e.target.value.trim().length > 0);
-    //       }}
-    //       placeholder=""
-    //       className="w-full h-32 p-4 border border-gray-300 rounded-lg text-lg opacity-100"
-    //     />
-
-    //     <div ref={buttonsRef} className="flex justify-center mt-4 space-x-4 opacity-100">
-    //       {supported && (
-    //         <button
-    //           onClick={handleListenClick}
-    //           className={`px-6 py-2 rounded-lg shadow text-white transition ${
-    //             listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
-    //           }`}
-    //         >
-    //           {listening ? "Stop Listening" : "🎙️ Listen"}
-    //         </button>
-    //       )}
-
-    //       {showSubmit && (
-    //         <button
-    //           onClick={handleSubmit}
-    //           className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow hover:bg-blue-800 transition"
-    //         >
-    //           Submit
-    //         </button>
-    //       )}
-    //     </div>
-    //   </div>
-    // </div>
-
     <div
-  className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-10 sm:px-6 lg:px-8 space-y-6 "
-  onClick={handleScreenClick}
->
-  <img
-    src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
-    alt="Background"
-    className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
-  />
-
-  <div
-    ref={cardRef}
-    className="relative z-10 bg-white/80 backdrop-blur-md p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md sm:max-w-lg lg:max-w-xl  "
-  >
-    <h2
-      ref={greetingRef}
-      className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-4"
+      className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-10 sm:px-6 lg:px-8 space-y-6"
+      onClick={handleScreenClick}
     >
-      Greeting you...
-    </h2>
+      <img
+        src="https://png.pngtree.com/thumb_back/fh260/background/20220617/pngtree-decent-green-water-color-background-image_1413931.jpg"
+        alt="Background"
+        className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
+      />
 
-    <p
-      ref={paraRef}
-      className="text-gray-700 dark:text-gray-300 text-base sm:text-lg md:text-xl mb-6"
-    >
-      Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
-    </p>
-
-    <textarea
-      ref={inputRef}
-      value={userInput}
-      onChange={(e) => {
-        setUserInput(e.target.value);
-        setShowSubmit(e.target.value.trim().length > 0);
-      }}
-      placeholder="Tell us about yourself..."
-      className="w-full h-28 sm:h-32 md:h-36 p-3 sm:p-4 border border-gray-300 rounded-lg text-base sm:text-lg resize-none"
-    />
-
-    <div
-      ref={buttonsRef}
-      className="flex flex-col sm:flex-row justify-center mt-6 gap-4"
-    >
-      {supported && (
-        <button
-          onClick={handleListenClick}
-          className={`px-6 py-2 rounded-lg shadow text-white text-base sm:text-lg transition ${
-            listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
-          }`}
+      <div
+        ref={cardRef}
+        className="relative z-10 bg-white/80 backdrop-blur-md p-6 sm:p-8 md:p-10 rounded-2xl shadow-xl w-full max-w-md sm:max-w-lg lg:max-w-xl"
+      >
+        <h2
+          ref={greetingRef}
+          className="text-2xl sm:text-3xl md:text-4xl font-semibold mb-4"
         >
-          {listening ? "Stop Listening" : "🎙️ Listen"}
-        </button>
-      )}
+          Greeting you...
+        </h2>
 
-      {showSubmit && (
-        <button
-          onClick={handleSubmit}
-          className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow text-base sm:text-lg hover:bg-blue-800 transition"
+        <p
+          ref={paraRef}
+          className="text-gray-700 dark:text-gray-300 text-base sm:text-lg md:text-xl mb-6"
         >
-          Submit
-        </button>
-      )}
+          Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN
+          company, living in Mumbai...
+        </p>
+
+        <textarea
+          ref={inputRef}
+          value={userInput}
+          onChange={(e) => {
+            setUserInput(e.target.value);
+            setShowSubmit(e.target.value.trim().length > 0);
+          }}
+          placeholder="Tell us about yourself..."
+          className="w-full h-28 sm:h-32 md:h-36 p-3 sm:p-4 border border-gray-300 rounded-lg text-base sm:text-lg resize-none"
+        />
+
+        <div
+          ref={buttonsRef}
+          className="flex flex-col sm:flex-row justify-center mt-6 gap-4"
+        >
+          <button
+            onClick={handleListenClick}
+            className={`px-6 py-2 rounded-lg shadow text-white text-base sm:text-lg transition ${
+              listening
+                ? "bg-red-600 hover:bg-red-700"
+                : "bg-green-600 hover:bg-green-700"
+            }`}
+          >
+            {listening ? "Stop Listening" : "🎙️ Listen"}
+          </button>
+
+          {showSubmit && (
+            <button
+              onClick={handleSubmit}
+              className="px-6 py-2 bg-blue-700 text-white rounded-lg shadow text-base sm:text-lg hover:bg-blue-800 transition"
+            >
+              Submit
+            </button>
+          )}
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-
   );
 };
 

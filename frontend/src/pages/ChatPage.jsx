@@ -129,9 +129,8 @@
 
 // export default ChatPage;
 
-
 import React, { useState, useRef, useEffect } from "react";
-import { useSpeechRecognition } from "react-speech-kit";
+import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { gsap } from "gsap";
 
 const ChatPage = () => {
@@ -141,11 +140,14 @@ const ChatPage = () => {
   const chatRef = useRef(null);
   const inputRef = useRef(null);
 
-  const { listen, stop, listening } = useSpeechRecognition({
-    onResult: (result) => {
-      setInput(result);
-    },
-  });
+  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
+    useSpeechRecognition();
+
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -153,6 +155,7 @@ const ChatPage = () => {
     const userMsg = { from: "user", text: input };
     setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
+    resetTranscript();
 
     try {
       const res = await fetch("https://bolsaathi.onrender.com/query", {
@@ -165,7 +168,7 @@ const ChatPage = () => {
       });
 
       const data = await res.json();
-      const botReply = data.data.details || "Sorry, no details found.";
+      const botReply = data.data?.details || "Sorry, no details found.";
       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -177,7 +180,11 @@ const ChatPage = () => {
   };
 
   const toggleListening = () => {
-    listening ? stop() : listen({ interim: false });
+    if (listening) {
+      SpeechRecognition.stopListening();
+    } else {
+      SpeechRecognition.startListening({ continuous: false, language: "en-IN" });
+    }
   };
 
   useEffect(() => {
@@ -197,14 +204,20 @@ const ChatPage = () => {
     );
   }, []);
 
+  if (!browserSupportsSpeechRecognition) {
+    return (
+      <div className="p-4 text-center text-red-600">
+        Sorry, your browser doesn’t support speech recognition.
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen max-h-screen p-3 sm:p-4 bg-gray-200">
-      {/* Header */}
       <h2 className="text-lg sm:text-2xl font-bold mb-3 text-center text-gray-700">
         Chat with Bol Saathi
       </h2>
 
-      {/* Chat Box */}
       <div
         ref={chatRef}
         className="flex flex-col flex-grow border p-3 sm:p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
@@ -228,11 +241,7 @@ const ChatPage = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input & Buttons */}
-      <div
-        ref={inputRef}
-        className="flex flex-col sm:flex-row items-stretch gap-2"
-      >
+      <div ref={inputRef} className="flex flex-col sm:flex-row items-stretch gap-2">
         <input
           className="border p-2 rounded w-full text-sm"
           placeholder="Ask something..."
