@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import gsap from "gsap";
 import JSEncrypt from "jsencrypt";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const SignupPage = () => {
   const navigate = useNavigate();

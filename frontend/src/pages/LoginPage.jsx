@@ -162,7 +162,6 @@ import { useNavigate } from "react-router-dom";
 // import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import gsap from "gsap";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const LoginPage = () => {
   const navigate = useNavigate();
