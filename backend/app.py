@@ -21,8 +21,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from openai import AsyncOpenAI  # works with Groq since it's OpenAI-compatible
+from openai import AsyncOpenAI, OpenAI  # works with Groq since it's OpenAI-compatible
 from tavily import TavilyClient
+# from groq import Groq
+
+# client = Groq()
 
 # ---------------------------------------------------------------------
 # Config & Logging
@@ -34,11 +37,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("Missing GROQ_API_KEY in environment.")
 
-client = AsyncOpenAI(
+client = OpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"
 )
-MODEL = os.getenv("GROQ_MODEL", "llama3-8b-8192")
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
 
@@ -89,14 +92,32 @@ class PromptFactory:
 # ---------------------------------------------------------------------
 async def run_llm(messages: List[Dict[str,str]], json_mode=False, **kwargs) -> str:
     try:
-        resp = await client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            temperature=kwargs.get("temperature",0.2),
-            max_tokens=kwargs.get("max_tokens",1200),
-            response_format={"type":"json_object"} if json_mode else None
+        # resp = await client.chat.completions.create(
+        #     model=MODEL,
+        #     messages=messages,
+        #     temperature=kwargs.get("temperature",0.2),
+        #     max_tokens=kwargs.get("max_tokens",1200),
+        #     response_format={"type":"json_object"} if json_mode else None
+        # )
+        response = client.responses.create(
+            input="\n".join(f"{m['role']}: {m['content']}" for m in messages),
+            model="openai/gpt-oss-20b",
         )
-        return resp.choices[0].message.content or ""
+        # print(response.output_text)
+        # completion = await client.chat.completions.create(
+        #     model=MODEL,
+        #     messages=messages,
+        #     temperature=1,
+        #     max_completion_tokens=8192,
+        #     top_p=1,
+        #     reasoning_effort="medium",
+        #     stream=True,
+        #     stop=None
+        # )
+        # result = ""
+        # for chunk in completion:
+        #     result = chunk.choices[0].delta.content or ""
+        return response.output_text
     except Exception as e:
         logger.exception("Groq API error")
         raise HTTPException(status_code=502, detail=str(e))
