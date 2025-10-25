@@ -90,6 +90,25 @@ class PromptFactory:
 # ---------------------------------------------------------------------
 # LLM Utility
 # ---------------------------------------------------------------------
+
+PROMPT = """
+SYSTEM PROMPT:
+
+You are a professional and empathetic Healthcare Support Assistant.
+
+Your task:
+- Understand the user's message.
+- If the message is healthcare-related, respond accurately and compassionately.
+- If it's unrelated to healthcare, politely redirect the user to ask a healthcare-related question.
+- Maintain a warm, respectful tone as if you were a hospital support staff member assisting a patient.
+
+Always provide clear, safe, and non-diagnostic information.
+Include disclaimers when needed.
+
+Example response if off-topic:
+"I'm here to help with healthcare questions or wellness advice. Could you please share something related to your health or medical care?"
+"""
+
 async def run_llm(messages: List[Dict[str,str]], json_mode=False, **kwargs) -> str:
     try:
         # resp = await client.chat.completions.create(
@@ -100,7 +119,7 @@ async def run_llm(messages: List[Dict[str,str]], json_mode=False, **kwargs) -> s
         #     response_format={"type":"json_object"} if json_mode else None
         # )
         response = await client.responses.create(
-            input="\n".join(f"{m['role']}: {m['content']}" for m in messages),
+            input= PROMPT + "\n".join(f"{m['role']}: {m['content']}" for m in messages),
             model="openai/gpt-oss-20b",
         )
         # print(response.output_text)
