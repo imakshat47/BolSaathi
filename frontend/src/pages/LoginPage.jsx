@@ -155,43 +155,24 @@
 
 // export default LoginPage;
 
+
+
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 import gsap from "gsap";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", password: "" });
 
-  const { speak } = useSpeechSynthesis();
-  const spokenRef = useRef(false);
-
   const cardRef = useRef(null);
   const contentRefs = useRef([]);
 
-  const { listen, stop, listening } = useSpeechRecognition({
-    onResult: (speechText) => {
-      const lower = speechText.toLowerCase();
-      const nameMatch = lower.match(/my name is\s*(.+)/);
-      if (nameMatch) {
-        const name = nameMatch[1].replace(/[0-9]/g, "").trim();
-        if (name) {
-          setForm((f) => ({ ...f, name }));
-        }
-      }
-    },
-  });
-
-  useEffect(() => {
-    if (!spokenRef.current) {
-      speak({
-        text: "Welcome back. Please say 'My name is...' or type your name and password.",
-        lang: "en-IN",
-      });
-      spokenRef.current = true;
-    }
-  }, []);
+  // Use custom speech recognition hook
+  const { listening, toggleListening, spokenRef } = useSpeechRecognition(
+    (detectedName) => setForm((f) => ({ ...f, name: detectedName }))
+  );
 
   useEffect(() => {
     // Animate container from right to center
@@ -224,7 +205,7 @@ const LoginPage = () => {
     e.preventDefault();
 
     if (!form.name || !form.password) {
-      speak({ text: "Both name and password are required.", lang: "en-IN" });
+      alert("Both name and password are required.");
       return;
     }
 
@@ -241,33 +222,15 @@ const LoginPage = () => {
       const data = await response.json();
 
       if (response.ok) {
-        speak({
-          text: `Welcome ${form.name}, you are logged in successfully.`,
-          lang: "en-IN",
-        });
-
-        setTimeout(() => {
-          navigate("/chat");
-        }, 4000);
+        alert(`Welcome ${form.name}, you are logged in successfully.`);
+        setTimeout(() => navigate("/chat"), 1500);
       } else {
-        speak({
-          text: data?.message || "Login failed. Please check your credentials.",
-          lang: "en-IN",
-        });
-        console.error("❌ Backend Error:", data);
+        alert(data?.message || "Login failed. Please check your credentials.");
       }
     } catch (error) {
-      speak({
-        text: `Welcome ${form.name}, you are logged in successfully.`,
-        lang: "en-IN",
-      });
+      alert("Network error. Please try again later.");
       console.error("❌ Network Error:", error);
     }
-  };
-
-  const toggleListening = () => {
-    if (listening) stop();
-    else listen({ interim: false });
   };
 
   return (
@@ -292,9 +255,7 @@ const LoginPage = () => {
           className="text-sm text-gray-700 mb-4 text-center"
           ref={(el) => (contentRefs.current[1] = el)}
         >
-          Speak or type your credentials.
-          <br />
-          Example: “My name is Rahul”
+          Speak or type your credentials. Example: “My name is Rahul”
         </p>
 
         <form onSubmit={handleSubmit} className="w-full space-y-4">
