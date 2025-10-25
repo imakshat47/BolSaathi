@@ -37,7 +37,7 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise RuntimeError("Missing GROQ_API_KEY in environment.")
 
-client = OpenAI(
+client = AsyncOpenAI(
     api_key=GROQ_API_KEY,
     base_url="https://api.groq.com/openai/v1"
 )
@@ -99,7 +99,7 @@ async def run_llm(messages: List[Dict[str,str]], json_mode=False, **kwargs) -> s
         #     max_tokens=kwargs.get("max_tokens",1200),
         #     response_format={"type":"json_object"} if json_mode else None
         # )
-        response = client.responses.create(
+        response = await client.responses.create(
             input="\n".join(f"{m['role']}: {m['content']}" for m in messages),
             model="openai/gpt-oss-20b",
         )
