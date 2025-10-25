@@ -1,137 +1,6 @@
-
-// // export default ChatPage;
-// import React, { useState, useRef, useEffect } from "react";
-// import { useSpeechRecognition } from "react-speech-kit";
-// import { gsap } from "gsap";
-
-// const ChatPage = () => {
-//   const [messages, setMessages] = useState([]);
-//   const [input, setInput] = useState("");
-//   const messagesEndRef = useRef(null);
-//   const chatRef = useRef(null);      // Chat area animation
-//   const inputRef = useRef(null);     // Input bar animation
-
-//   const { listen, stop, listening } = useSpeechRecognition({
-//     onResult: (result) => {
-//       setInput(result);
-//     },
-//   });
-
-//   const handleSend = async () => {
-//     if (!input.trim()) return;
-
-//     const userMsg = { from: "user", text: input };
-//     setMessages((msgs) => [...msgs, userMsg]);
-//     setInput("");
-
-//     try {
-//       const res = await fetch("https://bolsaathi.onrender.com/query", {
-//         method: "POST",
-//         headers: { "Content-Type": "application/json" },
-//         body: JSON.stringify({
-//           session_id: "john1",
-//           user_input: input,
-//         }),
-//       });
-
-//       const data = await res.json();
-//       const botReply = data.data.details || "Sorry, no details found.";
-//       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
-//     } catch (err) {
-//       console.error("Fetch error:", err);
-//       setMessages((msgs) => [
-//         ...msgs,
-//         { from: "bot", text: "Error contacting the server." },
-//       ]);
-//     }
-//   };
-
-//   const toggleListening = () => {
-//     listening ? stop() : listen({ interim: false });
-//   };
-
-//   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   // Initial animations on mount
-//   useEffect(() => {
-//     gsap.fromTo(
-//       chatRef.current,
-//       { x: -100, opacity: 0 },
-//       { x: 0, opacity: 1, duration: 0.8, ease: "power2.out" }
-//     );
-//     gsap.fromTo(
-//       inputRef.current,
-//       { x: 100, opacity: 0 },
-//       { x: 0, opacity: 1, duration: 0.8, delay: 0.2, ease: "power2.out" }
-//     );
-//   }, []);
-
-//   return (
-//     <div className="flex flex-col h-screen p-4 bg-gray-200">
-//       {/* Title OUTSIDE the grey chat block */}
-//       <h2 className="text-2xl font-bold mb-4 text-center text-gray-700">
-//         Chat with Bol Saathi
-//       </h2>
-
-//       {/* Chat Box */}
-//       <div
-//         ref={chatRef}
-//         className="flex flex-col flex-grow border p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
-//       >
-//         {messages.map((msg, idx) => (
-//           <div
-//             key={idx}
-//             className={`mb-2 ${msg.from === "user" ? "text-right" : "text-left"}`}
-//           >
-//             <span
-//               className={`inline-block px-4 py-2 rounded-lg ${
-//                 msg.from === "user"
-//                   ? "bg-white text-blue-800"
-//                   : "bg-white text-gray-800 border"
-//               }`}
-//             >
-//               {msg.text}
-//             </span>
-//           </div>
-//         ))}
-//         <div ref={messagesEndRef} />
-//       </div>
-
-//       {/* Input & Buttons */}
-//       <div ref={inputRef} className="flex items-center gap-2">
-//         <input
-//           className="border p-2 rounded w-full"
-//           placeholder="Ask something..."
-//           value={input}
-//           onChange={(e) => setInput(e.target.value)}
-//           onKeyDown={(e) => e.key === "Enter" && handleSend()}
-//         />
-//         <button
-//           onClick={toggleListening}
-//           className={`px-4 py-2 rounded text-white ${
-//             listening ? "bg-red-600" : "bg-green-600"
-//           }`}
-//         >
-//           {listening ? "Stop" : "🎤"}
-//         </button>
-//         <button
-//           onClick={handleSend}
-//           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-//         >
-//           Send
-//         </button>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default ChatPage;
-
 import React, { useState, useRef, useEffect } from "react";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { gsap } from "gsap";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const ChatPage = () => {
   const [messages, setMessages] = useState([]);
@@ -140,14 +9,7 @@ const ChatPage = () => {
   const chatRef = useRef(null);
   const inputRef = useRef(null);
 
-  const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } =
-    useSpeechRecognition();
-
-  useEffect(() => {
-    if (transcript) {
-      setInput(transcript);
-    }
-  }, [transcript]);
+  const { start, stop, listening } = useSpeechRecognition(setInput);
 
   const handleSend = async () => {
     if (!input.trim()) return;
@@ -155,7 +17,6 @@ const ChatPage = () => {
     const userMsg = { from: "user", text: input };
     setMessages((msgs) => [...msgs, userMsg]);
     setInput("");
-    resetTranscript();
 
     try {
       const res = await fetch("https://bolsaathi.onrender.com/query", {
@@ -180,17 +41,16 @@ const ChatPage = () => {
   };
 
   const toggleListening = () => {
-    if (listening) {
-      SpeechRecognition.stopListening();
-    } else {
-      SpeechRecognition.startListening({ continuous: false, language: "en-IN" });
-    }
+    if (listening) stop();
+    else start();
   };
 
+  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // GSAP animations
   useEffect(() => {
     gsap.fromTo(
       chatRef.current,
@@ -204,7 +64,11 @@ const ChatPage = () => {
     );
   }, []);
 
-  if (!browserSupportsSpeechRecognition) {
+  // Check for browser support
+  const speechSupported =
+    "webkitSpeechRecognition" in window || "SpeechRecognition" in window;
+
+  if (!speechSupported) {
     return (
       <div className="p-4 text-center text-red-600">
         Sorry, your browser doesn’t support speech recognition.
