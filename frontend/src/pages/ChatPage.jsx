@@ -29,7 +29,11 @@ const ChatPage = () => {
       });
 
       const data = await res.json();
-      const botReply = data.data?.details || "Sorry, no details found.";
+    
+      // ToDO: Show Suppoted Link below response and Don't store them as botReply
+      // support_links: metadata for user to help, can show then as hyperlink with target blank if user wants to read more.
+      // data.data?.support_links
+      const botReply = data.data?.response  || "Sorry, no details found.";
       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
     } catch (err) {
       console.error("Fetch error:", err);
