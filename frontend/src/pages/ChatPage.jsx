@@ -29,11 +29,8 @@ const ChatPage = () => {
       });
 
       const data = await res.json();
-    
-      // ToDO: Show Suppoted Link below response and Don't store them as botReply
-      // support_links: metadata for user to help, can show then as hyperlink with target blank if user wants to read more.
-      // data.data?.support_links
-      const botReply = data.data?.response  || "Sorry, no details found.";
+
+      const botReply = data.data?.response || "Sorry, no details found.";
       setMessages((msgs) => [...msgs, { from: "bot", text: botReply }]);
     } catch (err) {
       console.error("Fetch error:", err);
@@ -81,11 +78,12 @@ const ChatPage = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen max-h-screen p-3 sm:p-4 bg-gray-200">
+    <div className="flex flex-col min-h-screen bg-gray-200 p-3 sm:p-4">
       <h2 className="text-lg sm:text-2xl font-bold mb-3 text-center text-gray-700">
         Chat with Bol Saathi
       </h2>
 
+      {/* Chat Messages */}
       <div
         ref={chatRef}
         className="flex flex-col flex-grow border p-3 sm:p-4 overflow-y-auto mb-4 bg-[#ECECEC] rounded shadow-sm"
@@ -96,7 +94,7 @@ const ChatPage = () => {
             className={`mb-2 ${msg.from === "user" ? "text-right" : "text-left"}`}
           >
             <span
-              className={`inline-block px-3 py-2 rounded-lg text-sm sm:text-base ${
+              className={`inline-block px-3 py-2 rounded-lg text-sm sm:text-base break-words max-w-[80%] ${
                 msg.from === "user"
                   ? "bg-white text-blue-800"
                   : "bg-white text-gray-800 border"
@@ -109,18 +107,22 @@ const ChatPage = () => {
         <div ref={messagesEndRef} />
       </div>
 
-      <div ref={inputRef} className="flex flex-col sm:flex-row items-stretch gap-2">
+      {/* Input Row */}
+      <div
+        ref={inputRef}
+        className="flex flex-col sm:flex-row items-center gap-2 w-full"
+      >
         <input
-          className="border p-2 rounded w-full text-sm"
+          className="border p-2 rounded w-full text-sm flex-1"
           placeholder="Ask something..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
         />
-        <div className="flex gap-2 sm:gap-1">
+        <div className="flex gap-2 sm:gap-1 w-full sm:w-auto">
           <button
             onClick={toggleListening}
-            className={`w-full sm:w-auto px-4 py-2 text-sm rounded text-white ${
+            className={`flex-1 sm:flex-none px-4 py-2 text-sm rounded text-white ${
               listening ? "bg-red-600" : "bg-green-600"
             }`}
           >
@@ -128,7 +130,7 @@ const ChatPage = () => {
           </button>
           <button
             onClick={handleSend}
-            className="w-full sm:w-auto px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="flex-1 sm:flex-none px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
           >
             Send
           </button>

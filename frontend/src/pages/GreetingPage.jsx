@@ -2,17 +2,65 @@ import React, { useEffect, useContext, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { LanguageContext } from "../contexts/LanguageContext";
 import { gsap } from "gsap";
-import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const GreetingPage = () => {
   const navigate = useNavigate();
   const { changeLanguage } = useContext(LanguageContext);
 
   const [userInput, setUserInput] = useState("");
+  const [listening, setListening] = useState(false);
   const [showSubmit, setShowSubmit] = useState(true);
   const [hasSpokenOnClick, setHasSpokenOnClick] = useState(false);
 
-  const { start, stop, listening } = useSpeechRecognition(setUserInput);
+  const inputRef = useRef(null);
+  const cardRef = useRef(null);
+  const greetingRef = useRef(null);
+  const paraRef = useRef(null);
+  const buttonsRef = useRef(null);
+
+  const recognitionRef = useRef(null);
+
+  // Initialize SpeechRecognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((r) => r[0].transcript)
+        .join("");
+      setUserInput(transcript);
+      setShowSubmit(transcript.trim().length > 0);
+    };
+
+    recognition.onend = () => setListening(false);
+
+    recognitionRef.current = recognition;
+  }, []);
+
+  const startListening = () => {
+    if (recognitionRef.current && !listening) {
+      recognitionRef.current.start();
+      setListening(true);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+    }
+  };
+
+  const handleListenClick = () => {
+    inputRef.current?.blur();
+    if (listening) stopListening();
+    else startListening();
+  };
 
   // 🔊 Text-to-speech greeting
   const speakGreeting = () => {
@@ -24,14 +72,14 @@ const GreetingPage = () => {
     speechSynthesis.speak(utterance);
   };
 
-  // Refs for GSAP
-  const cardRef = useRef(null);
-  const greetingRef = useRef(null);
-  const paraRef = useRef(null);
-  const inputRef = useRef(null);
-  const buttonsRef = useRef(null);
+  const handleScreenClick = () => {
+    if (!hasSpokenOnClick) {
+      speakGreeting();
+      setHasSpokenOnClick(true);
+    }
+  };
 
-  // 🗣️ Auto language detection + greeting once
+  // Auto language detection
   useEffect(() => {
     const hasSpoken = sessionStorage.getItem("greetingSpoken");
 
@@ -56,7 +104,7 @@ const GreetingPage = () => {
     return () => clearTimeout(timer);
   }, [changeLanguage]);
 
-  // 🧠 Animate in
+  // GSAP animations
   useEffect(() => {
     gsap.set(
       [greetingRef.current, paraRef.current, inputRef.current, buttonsRef.current, cardRef.current],
@@ -93,18 +141,6 @@ const GreetingPage = () => {
     navigate("/userinfo", { state: userData });
   };
 
-  const handleListenClick = () => {
-    if (listening) stop();
-    else start();
-  };
-
-  const handleScreenClick = () => {
-    if (!hasSpokenOnClick) {
-      speakGreeting();
-      setHasSpokenOnClick(true);
-    }
-  };
-
   return (
     <div
       className="relative min-h-screen flex flex-col items-center justify-center text-center px-4 py-10 sm:px-6 lg:px-8 space-y-6"
@@ -131,8 +167,7 @@ const GreetingPage = () => {
           ref={paraRef}
           className="text-gray-700 dark:text-gray-300 text-base sm:text-lg md:text-xl mb-6"
         >
-          Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN
-          company, living in Mumbai...
+          Say or type something like: I'm Ramesh, male, 24 years old, working at DBHN company, living in Mumbai...
         </p>
 
         <textarea
