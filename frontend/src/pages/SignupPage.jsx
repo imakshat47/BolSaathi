@@ -1,44 +1,42 @@
-
-
 import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 // import { useSpeechRecognition, useSpeechSynthesis } from "react-speech-kit";
 import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 import gsap from "gsap";
 import JSEncrypt from "jsencrypt";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
 
 const SignupPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: "", password: "" });
 
-  const { speak } = useSpeechSynthesis();
   const spokenRef = useRef(false);
   const cardRef = useRef(null);
   const contentRefs = useRef([]);
 
-  const { listen, stop, listening } = useSpeechRecognition({
-    onResult: (speechText) => {
-      const lower = speechText.toLowerCase();
-      const nameMatch = lower.match(/my name is\s*(.+)/);
-      if (nameMatch) {
-        const name = nameMatch[1].replace(/[0-9]/g, "").trim();
-        if (name) {
-          setForm((f) => ({ ...f, name }));
-        }
-      }
-    },
-  });
+  // ✅ Custom speech recognition hook
+  const { listening, toggleListening } = useSpeechRecognition((detectedName) =>
+    setForm((f) => ({ ...f, name: detectedName }))
+  );
 
+  // ✅ Replace useSpeechSynthesis with native Web Speech API
+  const speak = (text) => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-IN";
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Welcome voice on first mount
   useEffect(() => {
     if (!spokenRef.current) {
-      speak({
-        text: "Welcome. Please say 'My name is...' or type your name and password manually.",
-        lang: "en-IN",
-      });
+      speak(
+        "Welcome. Please say 'My name is...' or type your name and password manually."
+      );
       spokenRef.current = true;
     }
-  }, [speak]);
+  }, []);
 
+  // GSAP animations
   useEffect(() => {
     gsap.fromTo(
       cardRef.current,
@@ -60,18 +58,21 @@ const SignupPage = () => {
     );
   }, []);
 
+  // Handle input change
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  // ✅ Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.password) {
-      speak({ text: "Both name and password are required.", lang: "en-IN" });
+      speak("Both name and password are required.");
       return;
     }
 
     try {
+      // Get public key for encryption
       const pubRes = await fetch("http://localhost:8000/keys/public.pem");
       const publicKey = await pubRes.text();
 
@@ -80,10 +81,11 @@ const SignupPage = () => {
       const encryptedPassword = encryptor.encrypt(form.password);
 
       if (!encryptedPassword) {
-        speak({ text: "Encryption failed.", lang: "en-IN" });
+        speak("Encryption failed.");
         return;
       }
 
+      // Send signup request
       const response = await fetch("http://localhost:8000/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,30 +95,24 @@ const SignupPage = () => {
       const data = await response.json();
 
       if (response.ok) {
-        speak({
-          text: `Thank you ${form.name}. You are signed up successfully.`,
-          lang: "en-IN",
-        });
+        speak(`Thank you ${form.name}. You are signed up successfully.`);
         setTimeout(() => {
           window.speechSynthesis.cancel();
           navigate("/greet");
-        }, 1000);
+        }, 1500);
       } else {
-        speak({
-          text: data?.message || "Registration failed. Please try again.",
-          lang: "en-IN",
-        });
+        speak(data?.message || "Registration failed. Please try again.");
         console.error("❌ Backend Error:", data);
       }
     } catch (error) {
-      speak({ text: "Something went wrong. Please try again.", lang: "en-IN" });
+      speak("Something went wrong. Please try again.");
       console.error("❌ Network Error:", error);
     }
   };
 
-  const toggleListening = () => {
-    if (listening) stop();
-    else listen({ interim: false });
+  // ✅ Toggle microphone listening
+  const handleListenClick = () => {
+    toggleListening();
   };
 
   return (
@@ -167,7 +163,7 @@ const SignupPage = () => {
 
           <button
             type="submit"
-            className="w-full bg-[#31699e] text-[10px] sm:text-[15px]  text-white py-2 rounded hover:bg-blue-800 transition"
+            className="w-full bg-[#31699e] text-[10px] sm:text-[15px] text-white py-2 rounded hover:bg-blue-800 transition"
             ref={(el) => (contentRefs.current[4] = el)}
           >
             Sign Up
@@ -175,9 +171,11 @@ const SignupPage = () => {
         </form>
 
         <button
-          onClick={toggleListening}
+          onClick={handleListenClick}
           className={`mt-4 w-full px-6 text-[10px] sm:text-[15px] py-2 rounded text-white transition ${
-            listening ? "bg-red-600 hover:bg-red-700" : "bg-green-600 hover:bg-green-700"
+            listening
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-green-600 hover:bg-green-700"
           }`}
           ref={(el) => (contentRefs.current[5] = el)}
         >
