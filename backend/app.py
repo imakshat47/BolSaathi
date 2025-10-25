@@ -109,7 +109,7 @@ Example response if off-topic:
 "I'm here to help with healthcare questions or wellness advice. Could you please share something related to your health or medical care?"
 """
 
-async def run_llm(messages: List[Dict[str,str]], json_mode=False, request_prompt=None, **kwargs) -> str:
+async def run_llm(messages: List[Dict[str,str]], json_mode=False, request_prompt="", **kwargs) -> str:
     try:
         response = await client.responses.create(
             input= request_prompt + "\n".join(f"{m['role']}: {m['content']}" for m in messages),
